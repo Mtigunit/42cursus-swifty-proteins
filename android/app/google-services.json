@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "84766249348",
+    "project_id": "swifty-protein-47de5",
+    "storage_bucket": "swifty-protein-47de5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:84766249348:android:951baaf57f9e1bfdbb0dd1",
+        "android_client_info": {
+          "package_name": "com.example.swifty_proteins"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6yLlbqa1Dw8NCubEfyvUuqQjZd256cFA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
