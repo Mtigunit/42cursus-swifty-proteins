@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:local_auth/local_auth.dart';
 import '../widgets/auth_text_field.dart';
 import '../widgets/auth_button.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -11,11 +13,15 @@ class AuthView extends StatefulWidget {
 }
 
 class _AuthViewState extends State<AuthView> {
+  final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
   final _formKey = GlobalKey<FormState>();
   bool _isSignIn = true;
   String? _errorMessage;
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final FlutterSecureStorage secureStorage = const FlutterSecureStorage();
+  final LocalAuthentication localAuth = LocalAuthentication();
+  User? get currentUser => firebaseAuth.currentUser;
 
   @override
   void dispose() {
@@ -30,6 +36,84 @@ class _AuthViewState extends State<AuthView> {
       _emailController.clear();
       _passwordController.clear();
     });
+  }
+
+  Future<void> _storeToken(User? user) async {
+    if (user != null) {
+      final token = await user.getIdToken();
+      if (token != null) {
+        await secureStorage.write(key: 'token', value: token);
+        await secureStorage.write(key: 'uid', value: user.uid);
+        await secureStorage.write(key: 'email', value: user.email ?? '');
+      }
+    }
+  }
+
+  Future<bool> hasValidToken() async {
+    final token = await secureStorage.read(key: 'user_token');
+    return token != null && token.isNotEmpty;
+  }
+
+  Future<void> _clearStoredToken() async {
+    await secureStorage.delete(key: 'user_token');
+    await secureStorage.delete(key: 'user_uid');
+    await secureStorage.delete(key: 'user_email');
+  }
+
+  Future<bool> authenticateWithLocalAuth(BuildContext context) async {
+    try {
+      final canAuthenticateWithBiometrics = await localAuth.canCheckBiometrics;
+      final canAuthenticate =
+          canAuthenticateWithBiometrics || await localAuth.isDeviceSupported();
+
+      if (!canAuthenticate) {
+        if (context.mounted) {
+          print('Biometric authentication not available');
+        }
+        return false;
+      }
+
+      final hasToken = await hasValidToken();
+      if (!hasToken) {
+        if (context.mounted) {
+          print('Please login first');
+        }
+        return false;
+      }
+
+      final didAuthenticate = await localAuth.authenticate(
+        localizedReason: 'Please authenticate to access your account',
+      );
+
+      if (didAuthenticate) {
+        final token = await secureStorage.read(key: 'user_token');
+        final uid = await secureStorage.read(key: 'user_uid');
+
+        if (token != null && uid != null) {
+          if (currentUser == null || currentUser?.uid != uid) {
+            if (context.mounted) {
+              print('Please sign in again');
+            }
+            await _clearStoredToken();
+            return false;
+          }
+
+          if (context.mounted) {
+            print('Authentication successful!');
+            Navigator.pushReplacementNamed(context, "/home");
+          }
+          return true;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      print('Local auth error: $e');
+      if (context.mounted) {
+        print('Authentication failed');
+      }
+      return false;
+    }
   }
 
   Future<void> _onSignIn() async {
@@ -47,10 +131,12 @@ class _AuthViewState extends State<AuthView> {
         case 'email-already-in-use':
         // Account exists, try to sign in instead
           try {
-            await FirebaseAuth.instance.signInWithEmailAndPassword(
+            final credentials = await FirebaseAuth.instance.signInWithEmailAndPassword(
               email: _emailController.text,
               password: _passwordController.text,
             );
+            await _storeToken(credentials.user);
+
           } on FirebaseAuthException catch (signInError) {
             setState(() {
               switch (signInError.code) {
@@ -69,6 +155,7 @@ class _AuthViewState extends State<AuthView> {
       }
     }
   }
+  
   String? _emailValidator(String? val) {
     if (val == null || val.isEmpty) return 'Email is required';
     final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
@@ -126,10 +213,20 @@ class _AuthViewState extends State<AuthView> {
                 label: 'Sign In',
                 onPressed: _isSignIn ? _onSignIn : _togglePage,
               ),
+              const SizedBox(height: 32,),
+              IconButton(
+                onPressed: () => authenticateWithLocalAuth,
+                icon: Icon(
+                        Icons.fingerprint,
+                        size: 40,
+                        color: Color(0xFF9EC90E),
+                      ),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+
 }
