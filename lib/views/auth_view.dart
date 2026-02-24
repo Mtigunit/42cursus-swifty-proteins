@@ -33,60 +33,42 @@ class _AuthViewState extends State<AuthView> {
   }
 
   Future<void> _onSignIn() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _errorMessage = null);
-    if (!_formKey.currentState!.validate()) return;
-    
+
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      // Try to create account first
+      await FirebaseAuth.instance.createUserWithEmailAndPassword(
         email: _emailController.text,
         password: _passwordController.text,
       );
-      // no navigation needed, StreamBuilder handles it
     } on FirebaseAuthException catch (e) {
-      setState(() {
-        switch (e.code) {
-          case 'user-not-found':
-            _errorMessage = 'No account found for that email.';
-          case 'wrong-password':
-            _errorMessage = 'Incorrect password.';
-          case 'invalid-credential':
-            _errorMessage = 'Invalid email or password.';
-          default:
-            _errorMessage = 'An error occurred. Please try again.';
-        }
-      });
-    } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      switch (e.code) {
+        case 'email-already-in-use':
+        // Account exists, try to sign in instead
+          try {
+            await FirebaseAuth.instance.signInWithEmailAndPassword(
+              email: _emailController.text,
+              password: _passwordController.text,
+            );
+          } on FirebaseAuthException catch (signInError) {
+            setState(() {
+              switch (signInError.code) {
+                case 'wrong-password':
+                case 'invalid-credential':
+                  _errorMessage = 'Incorrect password.';
+                default:
+                  _errorMessage = 'An error occurred. Please try again.';
+              }
+            });
+          }
+        case 'weak-password':
+          setState(() => _errorMessage = 'The password provided is too weak.');
+        default:
+          setState(() => _errorMessage = 'An error occurred. Please try again.');
+      }
     }
   }
-
-  Future<void> _onSignUp() async {
-    setState(() => _errorMessage = null); // clear previous error
-    if (!_formKey.currentState!.validate()) return;
-
-    try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: _emailController.text,
-        password: _passwordController.text,
-      );
-      _togglePage();
-    } on FirebaseAuthException catch (e) {
-      setState(() {
-        switch (e.code) {
-          case 'weak-password':
-            _errorMessage = 'The password provided is too weak.';
-          case 'email-already-in-use':
-            _errorMessage = 'An account already exists for that email.';
-          default:
-            _errorMessage = 'An error occurred. Please try again.';
-        }
-      });
-    } catch (e) {
-      setState(() => _errorMessage = e.toString());
-    }
-  }
-
   String? _emailValidator(String? val) {
     if (val == null || val.isEmpty) return 'Email is required';
     final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
@@ -143,11 +125,6 @@ class _AuthViewState extends State<AuthView> {
               AuthButton(
                 label: 'Sign In',
                 onPressed: _isSignIn ? _onSignIn : _togglePage,
-              ),
-              const SizedBox(height: 12),
-              AuthButton(
-                label: 'Sign Up',
-                onPressed: _isSignIn ? _togglePage : _onSignUp,
               ),
             ],
           ),
