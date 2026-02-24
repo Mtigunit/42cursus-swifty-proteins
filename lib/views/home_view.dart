@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import '../services/home_controller.dart';
 
 class HomeView extends StatelessWidget {
   const HomeView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
+    final controller = HomeController();
 
     return Scaffold(
       appBar: AppBar(
@@ -14,16 +14,13 @@ class HomeView extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await FirebaseAuth.instance.signOut();
-              // StreamBuilder handles the rest
-            },
+            onPressed: controller.signOut,
           ),
         ],
       ),
       body: Center(
         child: Text(
-          'Hey ${user?.email ?? 'User'}!',
+          'Hey ${controller.currentUser?.email ?? 'User'}!',
           style: const TextStyle(fontSize: 24),
         ),
       ),
