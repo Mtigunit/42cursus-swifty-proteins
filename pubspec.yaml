@@ -36,7 +36,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   
   # Sharing & Export
-  share_plus: ^7.2.0
+  share_plus: ^12.0.1
   
   # Performance & async operations
   http: ^1.1.0
@@ -51,6 +51,25 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.3
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
+
+# Flutter Native Splash configuration
+flutter_native_splash:
+  color: "#0D1B2A"
+  image: assets/splash/splash_logo.png
+  android: true
+  ios: true
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -66,6 +85,8 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/ligands.txt
+    - assets/splash/
+    - assets/icon/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
