@@ -40,6 +40,7 @@ dependencies:
   
   # Performance & async operations
   http: ^1.1.0
+  vector_math: ^2.2.0
 
 dev_dependencies:
   flutter_test:

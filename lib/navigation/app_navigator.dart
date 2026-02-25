@@ -4,6 +4,7 @@ import 'package:swifty_proteins/screens/ligand_list_screen.dart';
 import 'package:swifty_proteins/screens/login_screen.dart';
 import 'package:swifty_proteins/screens/protein_view_screen.dart';
 import 'package:swifty_proteins/services/ligand_service.dart';
+import 'package:vector_math/vector_math.dart';
 
 /// Handles transitions between Login, List, and Protein View screens
 class AppNavigator extends StatefulWidget {
@@ -61,11 +62,11 @@ class _AppNavigatorState extends State<AppNavigator> {
     // Return mock molecule
     return Molecule(
       atoms: [
-        Atom(element: 'C', x: 0, y: 0, z: 0, index: 0),
-        Atom(element: 'O', x: 1.5, y: 0, z: 0, index: 1),
-        Atom(element: 'N', x: 0, y: 1.5, z: 0, index: 2),
-        Atom(element: 'H', x: -1, y: 0, z: 0, index: 3),
-        Atom(element: 'H', x: 0, y: -1, z: 0, index: 4),
+        Atom(element: 'C', position: Vector3(0, 0, 0)),
+        Atom(element: 'O', position: Vector3(1.2, 0, 0)),
+        Atom(element: 'N', position: Vector3(-1.2, 0, 0)),
+        Atom(element: 'H', position: Vector3(0, 1.2, 0)),
+        Atom(element: 'S', position: Vector3(0, -1.2, 0)),
       ],
       bonds: [
         Bond(atomIndex1: 0, atomIndex2: 1),
