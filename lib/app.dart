@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:swifty_proteins/navigation/app_navigator.dart';
+import 'package:swifty_proteins/screens/splash_screen.dart';
 import 'utils/theme.dart' as app_theme;
 
 class SwiftyProteinsApp extends StatelessWidget {
@@ -12,7 +12,7 @@ class SwiftyProteinsApp extends StatelessWidget {
       theme: app_theme.SwiftyTheme.lightTheme,
       darkTheme: app_theme.SwiftyTheme.darkTheme,
       themeMode: ThemeMode.system,
-      home: const AppNavigator(),
+      home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
