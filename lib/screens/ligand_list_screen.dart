@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:swifty_proteins/widgets/common/error_dialog.dart';
 import 'package:swifty_proteins/widgets/ligands/ligand_widgets.dart';
 
 /// Ligand List Screen - UI Layer Only
@@ -62,22 +63,10 @@ class _LigandListScreenState extends State<LigandListScreen> {
   void _showErrorDialog(String title, String message) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Color(0xFFFF3B30)),
-            const SizedBox(width: 8),
-            Expanded(child: Text(title)),
-          ],
-        ),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
+      builder: (context) => ErrorDialog(
+        title: title,
+        message: message,
+        onDismiss: () => Navigator.pop(context),
       ),
     );
   }
