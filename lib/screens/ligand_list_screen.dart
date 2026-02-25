@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:swifty_proteins/widgets/common/error_dialog.dart';
 import 'package:swifty_proteins/widgets/ligands/ligand_widgets.dart';
+// import 'package:swifty_proteins/services/ligand_service.dart';
 
-/// Ligand List Screen - UI Layer Only
-/// Displays list of available ligands with search functionality
 class LigandListScreen extends StatefulWidget {
   final List<String> ligands;
   final Future<void> Function(String ligandId) onLigandSelected;
@@ -50,6 +49,7 @@ class _LigandListScreenState extends State<LigandListScreen> {
       await widget.onLigandSelected(ligandId);
     } catch (e) {
       _showErrorDialog(
+        // TODO: improve error handling with specific messages based on error type
         'Failed to Load',
         'Could not load ligand $ligandId. Please try again.',
       );
