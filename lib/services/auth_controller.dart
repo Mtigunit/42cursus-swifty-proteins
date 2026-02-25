@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -15,7 +17,7 @@ class AuthController extends ChangeNotifier {
   bool isSignIn = true;
   String? errorMessage;
 
-  User? get currentUser => _firebaseAuth.currentUser;
+  // User? get currentUser => _firebaseAuth.currentUser;
 
   @override
   void dispose() {
@@ -43,18 +45,20 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> hasValidToken() async {
-    final token = await _secureStorage.read(key: 'user_token');
+    final token = await _secureStorage.read(key: 'token');
     return token != null && token.isNotEmpty;
   }
 
   Future<void> _clearStoredToken() async {
-    await _secureStorage.delete(key: 'user_token');
-    await _secureStorage.delete(key: 'user_uid');
-    await _secureStorage.delete(key: 'user_email');
+    await _secureStorage.delete(key: 'token');
+    await _secureStorage.delete(key: 'uid');
+    await _secureStorage.delete(key: 'email');
   }
 
   Future<bool> authenticateWithBiometrics(BuildContext context) async {
     try {
+      final firebaseUser = _firebaseAuth.currentUser ?? await _firebaseAuth.authStateChanges().first;
+
       final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
       final canAuthenticate =
           canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
@@ -62,29 +66,45 @@ class AuthController extends ChangeNotifier {
       if (!canAuthenticate) return false;
 
       final hasToken = await hasValidToken();
-      if (!hasToken) return false;
+      if (!hasToken) {
+        if (context.mounted)
+          print('DESIGN => Please login first');
+        return false;
+      }
 
       final didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Please authenticate to access your account',
       );
 
       if (didAuthenticate) {
-        final token = await _secureStorage.read(key: 'user_token');
-        final uid = await _secureStorage.read(key: 'user_uid');
+        final token = await _secureStorage.read(key: 'token');
+        final uid = await _secureStorage.read(key: 'uid');
+        log("token ===> ${token}");
 
         if (token != null && uid != null) {
-          if (currentUser == null || currentUser?.uid != uid) {
+          
+          log(firebaseUser == null ? "current user TRUE" : "current user FALSE");
+          if (firebaseUser == null || firebaseUser.uid != uid) {
+            // show an error 
+            if (context.mounted) {
+              print("DESIGN => You need to sing in again");
+            }
             await _clearStoredToken();
             return false;
           }
           if (context.mounted) {
-            Navigator.pushReplacementNamed(context, '/home');
+            print("DESIGN => Success authentication");
+            Navigator.pushReplacementNamed(context, "/home");
           }
           return true;
         }
       }
       return false;
     } catch (e) {
+      print('Local auth error: $e');
+      if (context.mounted) {
+        print('DESIGN => Auth failed ');
+      }
       return false;
     }
   }
@@ -95,10 +115,12 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _firebaseAuth.createUserWithEmailAndPassword(
+      final credentials = await _firebaseAuth.createUserWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
       );
+      await _storeToken(credentials.user); 
+
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'email-already-in-use':

@@ -14,7 +14,7 @@ class HomeView extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            onPressed: controller.signOut,
+            onPressed: () => controller.signOut(context),
           ),
         ],
       ),
