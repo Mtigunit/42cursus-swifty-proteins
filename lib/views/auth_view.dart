@@ -61,13 +61,14 @@ class _AuthViewState extends State<AuthView> {
                   AuthButton(
                     label: 'Sign In',
                     onPressed: _controller.isSignIn
-                        ? _controller.onSignIn
+                        ? () => _controller.onSignIn(context)
                         : _controller.togglePage,
                   ),
                   const SizedBox(height: 32),
                   IconButton(
-                    onPressed: () =>
-                        _controller.authenticateWithBiometrics(context),
+                    onPressed: () async {
+                      await _controller.authenticateWithBiometrics(context);
+                    },
                     icon: const Icon(
                       Icons.fingerprint,
                       size: 40,

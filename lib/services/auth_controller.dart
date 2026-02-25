@@ -7,8 +7,8 @@ import 'package:local_auth/local_auth.dart';
 
 class AuthController extends ChangeNotifier {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
   final LocalAuthentication _localAuth = LocalAuthentication();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -17,7 +17,7 @@ class AuthController extends ChangeNotifier {
   bool isSignIn = true;
   String? errorMessage;
 
-  // User? get currentUser => _firebaseAuth.currentUser;
+  User? get currentUser => _firebaseAuth.currentUser;
 
   @override
   void dispose() {
@@ -33,103 +33,152 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _storeToken(User? user) async {
+  Future<void> _storeUserToken(User? user) async {
     if (user != null) {
       final token = await user.getIdToken();
+      log('DESIGN => Got token: ${token?.substring(0, 20)}...');
       if (token != null) {
-        await _secureStorage.write(key: 'token', value: token);
-        await _secureStorage.write(key: 'uid', value: user.uid);
-        await _secureStorage.write(key: 'email', value: user.email ?? '');
+        await _secureStorage.write(key: 'user_token', value: token);
+        await _secureStorage.write(key: 'user_uid', value: user.uid);
+        await _secureStorage.write(key: 'user_email', value: user.email ?? '');
+        log('DESIGN => Stored token for UID: ${user.uid}');
       }
     }
   }
 
+  Future<void> _clearStoredToken() async {
+    await _secureStorage.delete(key: 'user_token');
+    await _secureStorage.delete(key: 'user_uid');
+    await _secureStorage.delete(key: 'user_email');
+  }
+
   Future<bool> hasValidToken() async {
-    final token = await _secureStorage.read(key: 'token');
+    final token = await _secureStorage.read(key: 'user_token');
     return token != null && token.isNotEmpty;
   }
 
-  Future<void> _clearStoredToken() async {
-    await _secureStorage.delete(key: 'token');
-    await _secureStorage.delete(key: 'uid');
-    await _secureStorage.delete(key: 'email');
+  Future<bool> _isTokenValid() async {
+    try {
+      final token = await _secureStorage.read(key: 'user_token');
+      final uid = await _secureStorage.read(key: 'user_uid');
+      
+      if (token == null || uid == null) return false;
+      
+      // Try to use the token - if it's expired/revoked, this will fail
+      final user = _firebaseAuth.currentUser;
+      if (user == null) {
+        // Try to restore session with stored credentials
+        // If token is invalid, Firebase will reject it
+        await user?.getIdTokenResult(true); // Force refresh
+        return true;
+      }
+      return false;
+    } catch (e) {
+      log('Token validation failed: $e');
+      return false;
+    }
   }
 
   Future<bool> authenticateWithBiometrics(BuildContext context) async {
     try {
-      final firebaseUser = _firebaseAuth.currentUser ?? await _firebaseAuth.authStateChanges().first;
+      log('DESIGN => Starting biometric authentication...');
+      
+      final user = currentUser;
+      final tokenValid = await _isTokenValid();
+      
+      log('DESIGN => Firebase currentUser: ${user?.uid}');
+      log('DESIGN => Token is valid: $tokenValid');
+      
+      // Only proceed if we have a valid token
+      if (!tokenValid) {
+        log('DESIGN => Token is expired or invalid. Please login again');
+        await _clearStoredToken();
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Session expired. Please login again')),
+          );
+        }
+        return false;
+      }
 
+      // Check if device supports biometric
       final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
       final canAuthenticate =
           canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
 
-      if (!canAuthenticate) return false;
+      log('DESIGN => Can authenticate with biometrics: $canAuthenticateWithBiometrics');
+      log('DESIGN => Can authenticate: $canAuthenticate');
 
-      final hasToken = await hasValidToken();
-      if (!hasToken) {
-        if (context.mounted)
-          print('DESIGN => Please login first');
+      if (!canAuthenticate) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Biometric not available on this device')),
+          );
+        }
         return false;
       }
 
+      log('DESIGN => About to show biometric dialog...');
+
+      // Show native biometric dialog
       final didAuthenticate = await _localAuth.authenticate(
-        localizedReason: 'Please authenticate to access your account',
+        localizedReason: 'Authenticate to access your account',
       );
 
-      if (didAuthenticate) {
-        final token = await _secureStorage.read(key: 'token');
-        final uid = await _secureStorage.read(key: 'uid');
-        log("token ===> ${token}");
+      log('DESIGN => Biometric authentication result: $didAuthenticate');
 
-        if (token != null && uid != null) {
-          
-          log(firebaseUser == null ? "current user TRUE" : "current user FALSE");
-          if (firebaseUser == null || firebaseUser.uid != uid) {
-            // show an error 
-            if (context.mounted) {
-              print("DESIGN => You need to sing in again");
-            }
-            await _clearStoredToken();
-            return false;
-          }
-          if (context.mounted) {
-            print("DESIGN => Success authentication");
-            Navigator.pushReplacementNamed(context, "/home");
-          }
-          return true;
-        }
+      if (!didAuthenticate) {
+        log('DESIGN => User cancelled biometric authentication');
+        return false;
       }
-      return false;
-    } catch (e) {
-      print('Local auth error: $e');
+
+      log('DESIGN => Biometric authentication successful!');
       if (context.mounted) {
-        print('DESIGN => Auth failed ');
+        Navigator.of(context).pushReplacementNamed('/home');
       }
+      return true;
+    } catch (e) {
+      log('Biometric auth error: $e');
       return false;
     }
   }
 
-  Future<void> onSignIn() async {
+  Future<void> onSignIn(BuildContext context) async {
     if (!formKey.currentState!.validate()) return;
     errorMessage = null;
     notifyListeners();
 
     try {
-      final credentials = await _firebaseAuth.createUserWithEmailAndPassword(
+      log('DESIGN => Attempting to sign up...');
+      var credential = await _firebaseAuth.createUserWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
       );
-      await _storeToken(credentials.user); 
-
+      log('DESIGN => Sign up successful: ${credential.user?.uid}');
+      await _storeUserToken(credential.user);
+      log('DESIGN => Token stored');
+      // Wait a moment for auth state to update
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (context.mounted) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'email-already-in-use':
+          log('DESIGN => Email already in use, attempting sign in...');
           try {
-            final credentials = await _firebaseAuth.signInWithEmailAndPassword(
+            var credential = await _firebaseAuth.signInWithEmailAndPassword(
               email: emailController.text,
               password: passwordController.text,
             );
-            await _storeToken(credentials.user);
+            log('DESIGN => Sign in successful: ${credential.user?.uid}');
+            await _storeUserToken(credential.user);
+            log('DESIGN => Token stored');
+            // Wait a moment for auth state to update
+            await Future.delayed(const Duration(milliseconds: 500));
+            if (context.mounted) {
+              Navigator.of(context).pushReplacementNamed('/home');
+            }
           } on FirebaseAuthException catch (signInError) {
             switch (signInError.code) {
               case 'wrong-password':

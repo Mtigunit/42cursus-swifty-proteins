@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSFaceIDUsageDescription</key>
+	<string>We need Face ID to authenticate your account</string>
+	<key>NSLocalizedDescription</key>
+	<string>This app uses biometric authentication to access your account</string>
 </dict>
 </plist>

@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class HomeController {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -8,6 +9,8 @@ class HomeController {
 
   Future<void> signOut(BuildContext context) async {
     await _firebaseAuth.signOut();
-    Navigator.pushReplacementNamed(context, '/login');
+    if (context.mounted) {
+      Navigator.pushReplacementNamed(context, '/auth');
+    }
   }
 }
