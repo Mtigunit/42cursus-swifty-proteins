@@ -2,13 +2,11 @@ import 'dart:developer';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 
 class AuthController extends ChangeNotifier {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final LocalAuthentication _localAuth = LocalAuthentication();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
@@ -33,66 +31,16 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _storeUserToken(User? user) async {
-    if (user != null) {
-      final token = await user.getIdToken();
-      log('DESIGN => Got token: ${token?.substring(0, 20)}...');
-      if (token != null) {
-        await _secureStorage.write(key: 'user_token', value: token);
-        await _secureStorage.write(key: 'user_uid', value: user.uid);
-        await _secureStorage.write(key: 'user_email', value: user.email ?? '');
-        log('DESIGN => Stored token for UID: ${user.uid}');
-      }
-    }
-  }
-
-  Future<void> _clearStoredToken() async {
-    await _secureStorage.delete(key: 'user_token');
-    await _secureStorage.delete(key: 'user_uid');
-    await _secureStorage.delete(key: 'user_email');
-  }
-
-  Future<bool> hasValidToken() async {
-    final token = await _secureStorage.read(key: 'user_token');
-    return token != null && token.isNotEmpty;
-  }
-
-  Future<bool> _isTokenValid() async {
-    try {
-      final token = await _secureStorage.read(key: 'user_token');
-      final uid = await _secureStorage.read(key: 'user_uid');
-      
-      if (token == null || uid == null) return false;
-      
-      // Try to use the token - if it's expired/revoked, this will fail
-      final user = _firebaseAuth.currentUser;
-      if (user == null) {
-        // Try to restore session with stored credentials
-        // If token is invalid, Firebase will reject it
-        await user?.getIdTokenResult(true); // Force refresh
-        return true;
-      }
-      return false;
-    } catch (e) {
-      log('Token validation failed: $e');
-      return false;
-    }
+  Future<bool> _hasValidSession() async {
+    final user = _firebaseAuth.currentUser;
+    return user != null;
   }
 
   Future<bool> authenticateWithBiometrics(BuildContext context) async {
     try {
-      log('DESIGN => Starting biometric authentication...');
-      
-      final user = currentUser;
-      final tokenValid = await _isTokenValid();
-      
-      log('DESIGN => Firebase currentUser: ${user?.uid}');
-      log('DESIGN => Token is valid: $tokenValid');
-      
-      // Only proceed if we have a valid token
-      if (!tokenValid) {
-        log('DESIGN => Token is expired or invalid. Please login again');
-        await _clearStoredToken();
+      final validSession = await _hasValidSession();
+      // Only proceed if we have a valid session
+      if (!validSession) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Session expired. Please login again')),
@@ -106,9 +54,6 @@ class AuthController extends ChangeNotifier {
       final canAuthenticate =
           canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
 
-      log('DESIGN => Can authenticate with biometrics: $canAuthenticateWithBiometrics');
-      log('DESIGN => Can authenticate: $canAuthenticate');
-
       if (!canAuthenticate) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -118,21 +63,15 @@ class AuthController extends ChangeNotifier {
         return false;
       }
 
-      log('DESIGN => About to show biometric dialog...');
-
       // Show native biometric dialog
       final didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Authenticate to access your account',
       );
 
-      log('DESIGN => Biometric authentication result: $didAuthenticate');
-
       if (!didAuthenticate) {
-        log('DESIGN => User cancelled biometric authentication');
         return false;
       }
 
-      log('DESIGN => Biometric authentication successful!');
       if (context.mounted) {
         Navigator.of(context).pushReplacementNamed('/home');
       }
@@ -155,7 +94,7 @@ class AuthController extends ChangeNotifier {
         password: passwordController.text,
       );
       log('DESIGN => Sign up successful: ${credential.user?.uid}');
-      await _storeUserToken(credential.user);
+      // await _storeUserToken(credential.user);
       log('DESIGN => Token stored');
       // Wait a moment for auth state to update
       await Future.delayed(const Duration(milliseconds: 500));
@@ -172,7 +111,7 @@ class AuthController extends ChangeNotifier {
               password: passwordController.text,
             );
             log('DESIGN => Sign in successful: ${credential.user?.uid}');
-            await _storeUserToken(credential.user);
+            // await _storeUserToken(credential.user);
             log('DESIGN => Token stored');
             // Wait a moment for auth state to update
             await Future.delayed(const Duration(milliseconds: 500));
