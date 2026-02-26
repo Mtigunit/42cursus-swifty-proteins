@@ -34,6 +34,18 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  firebase_auth: ^6.1.4
+
+  # local_auth: cross-platform plugin (iOS, Android, macOS) for biometric
+  # authentication (Face ID, Touch ID, fingerprint). Uses the platform's
+  # native secure enclave — no biometric data ever leaves the device.
+  local_auth: ^2.3.0
+
+  # flutter_secure_storage: stores email/password in the platform keychain /
+  # keystore so they can be retrieved after a successful biometric prompt.
+  # Required because Firebase Email+Password sign-in needs the password at
+  # runtime — we cannot reconstruct it without storing it securely.
+  # flutter_secure_storage: ^9.2.4
   
   # Sharing & Export
   share_plus: ^12.0.1
@@ -41,6 +53,7 @@ dependencies:
   # Performance & async operations
   http: ^1.1.0
   vector_math: ^2.2.0
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:

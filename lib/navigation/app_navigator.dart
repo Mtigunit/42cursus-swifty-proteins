@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:swifty_proteins/models/molecule.dart';
 import 'package:swifty_proteins/screens/ligand_list_screen.dart';
@@ -15,13 +16,11 @@ class AppNavigator extends StatefulWidget {
 }
 
 class _AppNavigatorState extends State<AppNavigator> {
-  // Navigation state
-  // TODO: Replace with actual authentication state from services
-  bool _isAuthenticated = false;
   Molecule? _currentMolecule;
   String? _currentLigandId;
   List<String> _ligands = [];
   bool _isLoadingLigands = true;
+  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
 
   @override
   void initState() {
@@ -77,22 +76,6 @@ class _AppNavigatorState extends State<AppNavigator> {
     );
   }
 
-  void _handleLogin(String username, String password) {
-    // TODO: Call actual authentication service
-    // Mock implementation - just transition to ligand list
-    Future.delayed(const Duration(milliseconds: 800), () {
-      if (mounted) {
-        setState(() => _isAuthenticated = true);
-      }
-    });
-  }
-
-  void _handleBiometricLogin() {
-    // TODO: Call actual biometric service
-    // Mock implementation
-    setState(() => _isAuthenticated = true);
-  }
-
   Future<void> _handleLigandSelected(String ligandId) async {
     try {
       final molecule = await _fetchLigand(ligandId);
@@ -121,9 +104,9 @@ class _AppNavigatorState extends State<AppNavigator> {
     });
   }
 
-  void _handleLogout() {
+  Future<void> _handleLogout() async {
+    await _firebaseAuth.signOut();
     setState(() {
-      _isAuthenticated = false;
       _currentMolecule = null;
       _currentLigandId = null;
     });
@@ -131,34 +114,35 @@ class _AppNavigatorState extends State<AppNavigator> {
 
   @override
   Widget build(BuildContext context) {
-    // Show loading while ligands are being loaded
-    if (_isLoadingLigands) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snapshot) {
+        // Firebase connection still initializing
+        if (snapshot.connectionState == ConnectionState.waiting || _isLoadingLigands) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
 
-    // Show Protein View if molecule is loaded
-    if (_currentMolecule != null && _currentLigandId != null) {
-      return ProteinViewScreen(
-        molecule: _currentMolecule!,
-        ligandId: _currentLigandId!,
-        onBack: _handleBackFromProteinView,
-      );
-    }
+        // Authenticated — show protein view or ligand list
+        if (snapshot.hasData) {
+          if (_currentMolecule != null && _currentLigandId != null) {
+            return ProteinViewScreen(
+              molecule: _currentMolecule!,
+              ligandId: _currentLigandId!,
+              onBack: _handleBackFromProteinView,
+            );
+          }
 
-    // Show Ligand List if authenticated
-    if (_isAuthenticated) {
-      return LigandListScreen(
-        ligands: _ligands,
-        onLigandSelected: _handleLigandSelected,
-        onLogout: _handleLogout,
-      );
-    }
+          return LigandListScreen(
+            ligands: _ligands,
+            onLigandSelected: _handleLigandSelected,
+            onLogout: _handleLogout,
+          );
+        }
 
-    // Show Login screen by default
-    return LoginScreen(
-      biometricAvailable: true,
-      onPasswordLogin: _handleLogin,
-      onBiometricLogin: _handleBiometricLogin,
+        // Not authenticated — show login
+        return const LoginScreen();
+      },
     );
   }
+
 }

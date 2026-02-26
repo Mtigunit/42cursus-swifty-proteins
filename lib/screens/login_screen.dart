@@ -1,80 +1,42 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:swifty_proteins/services/auth_service.dart';
 import 'package:swifty_proteins/widgets/common/app_title.dart';
-import 'package:swifty_proteins/widgets/common/error_dialog.dart';
 import 'package:swifty_proteins/widgets/common/gradient_background.dart';
 import 'package:swifty_proteins/widgets/login/login_widgets.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({
-    super.key,
-    this.onBiometricLogin,
-    this.onPasswordLogin,
-    this.biometricAvailable = false,
-  });
-
-  final VoidCallback? onBiometricLogin;
-  final void Function(String username, String password)? onPasswordLogin;
-  final bool biometricAvailable;
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // ── Controllers ────────────────────────────────────────────────────────────
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _usernameFocus = FocusNode();
-  final _passwordFocus = FocusNode();
+  final _authService = AuthService();
+  final _secureStorage = const FlutterSecureStorage();
+  bool _hasPreviousSession = false;
 
-  // ── State ──────────────────────────────────────────────────────────────────
-  bool _obscurePassword = true;
-  bool _isLoading = false;
+  @override
+  void initState() {
+    super.initState();
+    _checkPreviousSession();
+  }
 
-  // ── Lifecycle ──────────────────────────────────────────────────────────────
+  Future<void> _checkPreviousSession() async {
+    final email = await _secureStorage.read(key: "email");
+
+    if (mounted) {
+      setState(() => _hasPreviousSession = email != null);
+    }
+  }
+
   @override
   void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
-    _usernameFocus.dispose();
-    _passwordFocus.dispose();
+    _authService.dispose();
     super.dispose();
   }
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  void _handlePasswordLogin() {
-    FocusScope.of(context).unfocus();
-
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (username.isEmpty || password.isEmpty) {
-      _showError('Please enter both a username and password.');
-      return;
-    }
-
-    setState(() => _isLoading = true);
-    widget.onPasswordLogin?.call(username, password);
-  }
-
-  void stopLoading() {
-    if (mounted) setState(() => _isLoading = false);
-  }
-
-  void _showError(String message) {
-    if (!mounted) return;
-
-    showDialog<void>(
-      context: context,
-      builder: (context) => ErrorDialog(
-        title: 'Login Failed',
-        message: message,
-        onDismiss: () => Navigator.pop(context),
-      ),
-    );
-  }
-
-  // ── Build ──────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,9 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
               return SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight,
-                  ),
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -108,30 +68,21 @@ class _LoginScreenState extends State<LoginScreen> {
                         AppTitle(context: context),
                         const SizedBox(height: 40),
                         LoginForm(
-                          usernameController: _usernameController,
-                          passwordController: _passwordController,
-                          usernameFocus: _usernameFocus,
-                          passwordFocus: _passwordFocus,
-                          obscurePassword: _obscurePassword,
-                          isLoading: _isLoading,
-                          onToggleObscure: () => setState(
-                            () => _obscurePassword = !_obscurePassword,
+                          authService: _authService,
+                          onSubmit: () => _authService.onSignIn(context),
+                        ),
+                        const SizedBox(height: 16),
+                        if (_hasPreviousSession) ...[
+                          const OrDivider(),
+                          const SizedBox(height: 16),
+                          BiometricSection(
+                            available: true,
+                            isLoading: false,
+                            onPressed: () =>
+                                _authService.authenticateWithBiometrics(context),
                           ),
-                          onSubmit: _handlePasswordLogin,
-                        ),
-                        const SizedBox(height: 32),
-                        LoginButton(
-                          isLoading: _isLoading,
-                          onPressed: _handlePasswordLogin,
-                        ),
-                        const SizedBox(height: 16),
-                        const OrDivider(),
-                        const SizedBox(height: 16),
-                        BiometricSection(
-                          available: widget.biometricAvailable,
-                          isLoading: _isLoading,
-                          onPressed: widget.onBiometricLogin,
-                        ),
+                          const SizedBox(height: 16),
+                        ],
                         const Spacer(),
                         const Footer(),
                         const SizedBox(height: 32),

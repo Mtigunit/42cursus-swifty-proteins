@@ -1,70 +1,73 @@
 import 'package:flutter/material.dart';
+import 'package:swifty_proteins/services/auth_service.dart';
+import 'package:swifty_proteins/widgets/login/login_button.dart';
 
 class LoginForm extends StatelessWidget {
   const LoginForm({
-    required this.usernameController,
-    required this.passwordController,
-    required this.usernameFocus,
-    required this.passwordFocus,
-    required this.obscurePassword,
-    required this.isLoading,
-    required this.onToggleObscure,
+    required this.authService,
     required this.onSubmit,
     super.key,
   });
 
-  final TextEditingController usernameController;
-  final TextEditingController passwordController;
-  final FocusNode usernameFocus;
-  final FocusNode passwordFocus;
-  final bool obscurePassword;
-  final bool isLoading;
-  final VoidCallback onToggleObscure;
+  final AuthService authService;
   final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _LabeledField(
-          label: 'Username',
-          child: TextField(
-            controller: usernameController,
-            focusNode: usernameFocus,
-            enabled: !isLoading,
-            decoration: const InputDecoration(
-              hintText: 'Enter your username',
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-            textInputAction: TextInputAction.next,
-            onSubmitted: (_) => passwordFocus.requestFocus(),
-          ),
-        ),
-        const SizedBox(height: 20),
-        _LabeledField(
-          label: 'Password',
-          child: TextField(
-            controller: passwordController,
-            focusNode: passwordFocus,
-            enabled: !isLoading,
-            obscureText: obscurePassword,
-            decoration: InputDecoration(
-              hintText: 'Enter your password',
-              prefixIcon: const Icon(Icons.lock_outline),
-              suffixIcon: IconButton(
-                tooltip: obscurePassword ? 'Show password' : 'Hide password',
-                icon: Icon(
-                  obscurePassword ? Icons.visibility_off : Icons.visibility,
+    return Form(
+      key: authService.formKey,
+      child: ListenableBuilder(
+        listenable: authService,
+        builder: (context, _) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _LabeledField(
+                label: 'Email',
+                child: TextFormField(
+                  controller: authService.emailController,
+                  validator: authService.emailValidator,
+                  enabled: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your email',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  textInputAction: TextInputAction.next,
                 ),
-                onPressed: onToggleObscure,
               ),
-            ),
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => onSubmit(),
-          ),
-        ),
-      ],
+              const SizedBox(height: 20),
+              _LabeledField(
+                label: 'Password',
+                child: TextFormField(
+                  controller: authService.passwordController,
+                  validator: authService.passwordValidator,
+                  enabled: true,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter your password',
+                    prefixIcon: Icon(Icons.lock_outline),
+                  ),
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => onSubmit(),
+                ),
+              ),
+              if (authService.errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    authService.errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                  ),
+                ),
+              const SizedBox(height: 32),
+              LoginButton(
+                isLoading: false,
+                onPressed: () => authService.onSignIn(context),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
