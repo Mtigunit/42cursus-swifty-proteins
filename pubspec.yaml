@@ -46,6 +46,14 @@ dependencies:
   # Required because Firebase Email+Password sign-in needs the password at
   # runtime — we cannot reconstruct it without storing it securely.
   # flutter_secure_storage: ^9.2.4
+  
+  # Sharing & Export
+  share_plus: ^12.0.1
+  
+  # Performance & async operations
+  http: ^1.1.0
+  vector_math: ^2.2.0
+  flutter_secure_storage: ^9.2.2
 
 dev_dependencies:
   flutter_test:
@@ -57,6 +65,25 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.3
+
+# Flutter Launcher Icons configuration
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  remove_alpha_ios: true
+
+# Flutter Native Splash configuration
+flutter_native_splash:
+  color: "#0D1B2A"
+  image: assets/splash/splash_logo.png
+  android: true
+  ios: true
+  android_gravity: center
+  ios_content_mode: center
+  fullscreen: true
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,9 +97,10 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/ligands.txt
+    - assets/splash/
+    - assets/icon/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

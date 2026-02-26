@@ -3,16 +3,18 @@ import 'dart:developer';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-class AuthController extends ChangeNotifier {
+class AuthService extends ChangeNotifier {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final LocalAuthentication _localAuth = LocalAuthentication();
-
+  final _secureStorage = const FlutterSecureStorage();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final formKey = GlobalKey<FormState>();
 
   bool isSignIn = true;
+
   String? errorMessage;
 
   User? get currentUser => _firebaseAuth.currentUser;
@@ -31,25 +33,8 @@ class AuthController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> _hasValidSession() async {
-    final user = _firebaseAuth.currentUser;
-    return user != null;
-  }
-
   Future<bool> authenticateWithBiometrics(BuildContext context) async {
     try {
-      final validSession = await _hasValidSession();
-      // Only proceed if we have a valid session
-      if (!validSession) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Session expired. Please login again')),
-          );
-        }
-        return false;
-      }
-
-      // Check if device supports biometric
       final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
       final canAuthenticate =
           canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
@@ -63,18 +48,18 @@ class AuthController extends ChangeNotifier {
         return false;
       }
 
-      // Show native biometric dialog
       final didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Authenticate to access your account',
       );
 
-      if (!didAuthenticate) {
-        return false;
-      }
+      if (!didAuthenticate) return false;
 
-      if (context.mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
+      final email = await _secureStorage.read(key: "email");
+      final pass = await _secureStorage.read(key: "pass");
+      await _firebaseAuth.signInWithEmailAndPassword(
+        email: email!,
+        password: pass!,
+      );
       return true;
     } catch (e) {
       log('Biometric auth error: $e');
@@ -84,48 +69,32 @@ class AuthController extends ChangeNotifier {
 
   Future<void> onSignIn(BuildContext context) async {
     if (!formKey.currentState!.validate()) return;
+
     errorMessage = null;
     notifyListeners();
 
     try {
-      log('DESIGN => Attempting to sign up...');
-      var credential = await _firebaseAuth.createUserWithEmailAndPassword(
+      await _firebaseAuth.createUserWithEmailAndPassword(
         email: emailController.text,
         password: passwordController.text,
       );
-      log('DESIGN => Sign up successful: ${credential.user?.uid}');
-      // await _storeUserToken(credential.user);
-      log('DESIGN => Token stored');
-      // Wait a moment for auth state to update
-      await Future.delayed(const Duration(milliseconds: 500));
-      if (context.mounted) {
-        Navigator.of(context).pushReplacementNamed('/home');
-      }
+      await _secureStorage.write(key: "email", value: emailController.text);
+      await _secureStorage.write(key: "pass", value: passwordController.text);
     } on FirebaseAuthException catch (e) {
       switch (e.code) {
         case 'email-already-in-use':
-          log('DESIGN => Email already in use, attempting sign in...');
           try {
-            var credential = await _firebaseAuth.signInWithEmailAndPassword(
+            await _firebaseAuth.signInWithEmailAndPassword(
               email: emailController.text,
               password: passwordController.text,
             );
-            log('DESIGN => Sign in successful: ${credential.user?.uid}');
-            // await _storeUserToken(credential.user);
-            log('DESIGN => Token stored');
-            // Wait a moment for auth state to update
-            await Future.delayed(const Duration(milliseconds: 500));
-            if (context.mounted) {
-              Navigator.of(context).pushReplacementNamed('/home');
-            }
+            await _secureStorage.write(key: "email", value: emailController.text);
+            await _secureStorage.write(key: "pass", value: passwordController.text);
           } on FirebaseAuthException catch (signInError) {
-            switch (signInError.code) {
-              case 'wrong-password':
-              case 'invalid-credential':
-                errorMessage = 'Incorrect password.';
-              default:
-                errorMessage = 'An error occurred. Please try again.';
-            }
+            errorMessage = switch (signInError.code) {
+              'wrong-password' || 'invalid-credential' => 'Incorrect password.',
+              _ => 'An error occurred. Please try again.',
+            };
             notifyListeners();
           }
         case 'weak-password':
@@ -135,7 +104,18 @@ class AuthController extends ChangeNotifier {
           errorMessage = 'An error occurred. Please try again.';
           notifyListeners();
       }
+    } finally {
+      notifyListeners();
     }
+  }
+
+
+  Future<bool> checkPreviousSession() async {
+    final email = await _secureStorage.read(key: "email");
+    return email != null;
+    // if (mounted) {
+    //   setState(() => _hasPreviousSession = email != null);
+    // }
   }
 
   String? emailValidator(String? val) {
