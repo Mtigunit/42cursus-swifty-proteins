@@ -20,11 +20,13 @@ class BiometricSection extends StatelessWidget {
       return ElevatedButton.icon(
         onPressed: (isLoading || isDisabled) ? null : onPressed,
         icon: isLoading
-            ? const SizedBox.square(
+            ? SizedBox.square(
                 dimension: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.onSecondary,
+                  ),
                 ),
               )
             : const Icon(Icons.fingerprint),
