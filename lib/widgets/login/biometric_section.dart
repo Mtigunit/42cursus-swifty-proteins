@@ -4,21 +4,31 @@ class BiometricSection extends StatelessWidget {
   const BiometricSection({
     required this.available,
     required this.isLoading,
+    required this.isDisabled,
     required this.onPressed,
     super.key,
   });
 
   final bool available;
   final bool isLoading;
+  final bool isDisabled;
   final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
     if (available) {
       return ElevatedButton.icon(
-        onPressed: isLoading ? null : onPressed,
-        icon: const Icon(Icons.fingerprint),
-        label: const Text('Biometric Login'),
+        onPressed: (isLoading || isDisabled) ? null : onPressed,
+        icon: isLoading
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                ),
+              )
+            : const Icon(Icons.fingerprint),
+        label: Text(isLoading ? 'Authenticating…' : 'Biometric Login'),
         style: ElevatedButton.styleFrom(
           backgroundColor: Theme.of(context).colorScheme.secondary,
           foregroundColor: Colors.black,

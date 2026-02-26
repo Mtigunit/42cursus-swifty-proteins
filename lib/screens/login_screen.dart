@@ -53,40 +53,48 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: constraints.maxHeight),
                   child: IntrinsicHeight(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          height: keyboardVisible
-                              ? 20
-                              : constraints.maxHeight * 0.1,
-                        ),
-                        if (!keyboardVisible) ...[
-                          const AppIcon(),
-                          const SizedBox(height: 24),
-                        ],
-                        AppTitle(context: context),
-                        const SizedBox(height: 40),
-                        LoginForm(
-                          authService: _authService,
-                          onSubmit: () => _authService.onSignIn(context),
-                        ),
-                        const SizedBox(height: 16),
-                        if (_hasPreviousSession) ...[
-                          const OrDivider(),
-                          const SizedBox(height: 16),
-                          BiometricSection(
-                            available: true,
-                            isLoading: false,
-                            onPressed: () =>
-                                _authService.authenticateWithBiometrics(context),
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                        const Spacer(),
-                        const Footer(),
-                        const SizedBox(height: 32),
-                      ],
+                    child: ListenableBuilder(
+                      listenable: _authService,
+                      builder: (context, _) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            SizedBox(
+                              height: keyboardVisible
+                                  ? 20
+                                  : constraints.maxHeight * 0.1,
+                            ),
+                            if (!keyboardVisible) ...[
+                              const AppIcon(),
+                              const SizedBox(height: 24),
+                            ],
+                            AppTitle(context: context),
+                            const SizedBox(height: 40),
+                            LoginForm(
+                              authService: _authService,
+                              onSubmit: () => _authService.onSignIn(context),
+                              isBiometricLoading:
+                                  _authService.isBiometricLoading,
+                            ),
+                            const SizedBox(height: 16),
+                            if (_hasPreviousSession) ...[
+                              const OrDivider(),
+                              const SizedBox(height: 16),
+                              BiometricSection(
+                                available: true,
+                                isLoading: _authService.isBiometricLoading,
+                                isDisabled: _authService.isLoginLoading,
+                                onPressed: () => _authService
+                                    .authenticateWithBiometrics(context),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
+                            const Spacer(),
+                            const Footer(),
+                            const SizedBox(height: 32),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),

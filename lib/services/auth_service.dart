@@ -14,6 +14,8 @@ class AuthService extends ChangeNotifier {
   final formKey = GlobalKey<FormState>();
 
   bool isSignIn = true;
+  bool isLoginLoading = false;
+  bool isBiometricLoading = false;
 
   String? errorMessage;
 
@@ -34,6 +36,9 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> authenticateWithBiometrics(BuildContext context) async {
+    isBiometricLoading = true;
+    notifyListeners();
+
     try {
       final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
       final canAuthenticate =
@@ -42,7 +47,9 @@ class AuthService extends ChangeNotifier {
       if (!canAuthenticate) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Biometric not available on this device')),
+            const SnackBar(
+              content: Text('Biometric not available on this device'),
+            ),
           );
         }
         return false;
@@ -64,12 +71,16 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       log('Biometric auth error: $e');
       return false;
+    } finally {
+      isBiometricLoading = false;
+      notifyListeners();
     }
   }
 
   Future<void> onSignIn(BuildContext context) async {
     if (!formKey.currentState!.validate()) return;
 
+    isLoginLoading = true;
     errorMessage = null;
     notifyListeners();
 
@@ -88,8 +99,14 @@ class AuthService extends ChangeNotifier {
               email: emailController.text,
               password: passwordController.text,
             );
-            await _secureStorage.write(key: "email", value: emailController.text);
-            await _secureStorage.write(key: "pass", value: passwordController.text);
+            await _secureStorage.write(
+              key: "email",
+              value: emailController.text,
+            );
+            await _secureStorage.write(
+              key: "pass",
+              value: passwordController.text,
+            );
           } on FirebaseAuthException catch (signInError) {
             errorMessage = switch (signInError.code) {
               'wrong-password' || 'invalid-credential' => 'Incorrect password.',
@@ -105,10 +122,10 @@ class AuthService extends ChangeNotifier {
           notifyListeners();
       }
     } finally {
+      isLoginLoading = false;
       notifyListeners();
     }
   }
-
 
   Future<bool> checkPreviousSession() async {
     final email = await _secureStorage.read(key: "email");

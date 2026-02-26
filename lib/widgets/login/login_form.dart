@@ -2,22 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:swifty_proteins/services/auth_service.dart';
 import 'package:swifty_proteins/widgets/login/login_button.dart';
 
-class LoginForm extends StatelessWidget {
+class LoginForm extends StatefulWidget {
   const LoginForm({
     required this.authService,
     required this.onSubmit,
+    required this.isBiometricLoading,
     super.key,
   });
 
   final AuthService authService;
   final VoidCallback onSubmit;
+  final bool isBiometricLoading;
+
+  @override
+  State<LoginForm> createState() => _LoginFormState();
+}
+
+class _LoginFormState extends State<LoginForm> {
+  bool _obscurePassword = true;
 
   @override
   Widget build(BuildContext context) {
     return Form(
-      key: authService.formKey,
+      key: widget.authService.formKey,
       child: ListenableBuilder(
-        listenable: authService,
+        listenable: widget.authService,
         builder: (context, _) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -25,8 +34,8 @@ class LoginForm extends StatelessWidget {
               _LabeledField(
                 label: 'Email',
                 child: TextFormField(
-                  controller: authService.emailController,
-                  validator: authService.emailValidator,
+                  controller: widget.authService.emailController,
+                  validator: widget.authService.emailValidator,
                   enabled: true,
                   decoration: const InputDecoration(
                     hintText: 'Enter your email',
@@ -39,30 +48,40 @@ class LoginForm extends StatelessWidget {
               _LabeledField(
                 label: 'Password',
                 child: TextFormField(
-                  controller: authService.passwordController,
-                  validator: authService.passwordValidator,
+                  controller: widget.authService.passwordController,
+                  validator: widget.authService.passwordValidator,
                   enabled: true,
-                  obscureText: true,
-                  decoration: const InputDecoration(
+                  obscureText: _obscurePassword,
+                  decoration: InputDecoration(
                     hintText: 'Enter your password',
-                    prefixIcon: Icon(Icons.lock_outline),
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                    ),
                   ),
                   textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) => onSubmit(),
+                  onFieldSubmitted: (_) => widget.onSubmit(),
                 ),
               ),
-              if (authService.errorMessage != null)
+              if (widget.authService.errorMessage != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
-                    authService.errorMessage!,
+                    widget.authService.errorMessage!,
                     style: const TextStyle(color: Colors.red, fontSize: 13),
                   ),
                 ),
               const SizedBox(height: 32),
               LoginButton(
-                isLoading: false,
-                onPressed: () => authService.onSignIn(context),
+                isLoading: widget.authService.isLoginLoading,
+                isDisabled: widget.isBiometricLoading,
+                onPressed: () => widget.authService.onSignIn(context),
               ),
             ],
           );
