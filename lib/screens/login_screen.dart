@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _checkPreviousSession();
+    _authService.checkBiometricAvailability();
   }
 
   Future<void> _checkPreviousSession() async {
@@ -81,7 +82,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               const OrDivider(),
                               const SizedBox(height: 16),
                               BiometricSection(
-                                available: true,
+                                available: _authService.isBiometricAvailable,
                                 isLoading: _authService.isBiometricLoading,
                                 isDisabled: _authService.isLoginLoading,
                                 onPressed: () => _authService

@@ -69,14 +69,6 @@ class _LoginFormState extends State<LoginForm> {
                   onFieldSubmitted: (_) => widget.onSubmit(),
                 ),
               ),
-              if (widget.authService.errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Text(
-                    widget.authService.errorMessage!,
-                    style: const TextStyle(color: Colors.red, fontSize: 13),
-                  ),
-                ),
               const SizedBox(height: 32),
               LoginButton(
                 isLoading: widget.authService.isLoginLoading,
