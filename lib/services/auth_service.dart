@@ -176,14 +176,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<bool> checkPreviousSession() async {
-    final email = await _secureStorage.read(key: "email");
-    return email != null;
-    // if (mounted) {
-    //   setState(() => _hasPreviousSession = email != null);
-    // }
-  }
-
   String? emailValidator(String? val) {
     if (val == null || val.isEmpty) return 'Email is required';
     final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
