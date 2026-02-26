@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:swifty_proteins/models/molecule.dart';
@@ -14,7 +15,8 @@ class AppNavigator extends StatefulWidget {
   State<AppNavigator> createState() => _AppNavigatorState();
 }
 
-class _AppNavigatorState extends State<AppNavigator> {
+class _AppNavigatorState extends State<AppNavigator>
+    with WidgetsBindingObserver {
   Molecule? _currentMolecule;
   String? _currentLigandId;
   List<String> _ligands = [];
@@ -24,7 +26,22 @@ class _AppNavigatorState extends State<AppNavigator> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadLigands();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      // App is backgrounded - logout user
+      unawaited(_firebaseAuth.signOut());
+    }
   }
 
   Future<void> _loadLigands() async {
@@ -114,8 +131,11 @@ class _AppNavigatorState extends State<AppNavigator> {
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
         // Firebase connection still initializing
-        if (snapshot.connectionState == ConnectionState.waiting || _isLoadingLigands) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        if (snapshot.connectionState == ConnectionState.waiting ||
+            _isLoadingLigands) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
         // Authenticated — show protein view or ligand list
@@ -140,5 +160,4 @@ class _AppNavigatorState extends State<AppNavigator> {
       },
     );
   }
-
 }

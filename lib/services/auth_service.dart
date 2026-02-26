@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:swifty_proteins/widgets/common/error_dialog.dart';
 
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
@@ -14,6 +15,9 @@ class AuthService extends ChangeNotifier {
   final formKey = GlobalKey<FormState>();
 
   bool isSignIn = true;
+  bool isLoginLoading = false;
+  bool isBiometricLoading = false;
+  bool isBiometricAvailable = false;
 
   String? errorMessage;
 
@@ -26,6 +30,20 @@ class AuthService extends ChangeNotifier {
     super.dispose();
   }
 
+  Future<void> checkBiometricAvailability() async {
+    try {
+      final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
+      final canAuthenticate =
+          canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+      isBiometricAvailable = canAuthenticate;
+      notifyListeners();
+    } catch (e) {
+      log('Error checking biometric availability: $e');
+      isBiometricAvailable = false;
+      notifyListeners();
+    }
+  }
+
   void togglePage() {
     isSignIn = !isSignIn;
     emailController.clear();
@@ -34,20 +52,10 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<bool> authenticateWithBiometrics(BuildContext context) async {
+    isBiometricLoading = true;
+    notifyListeners();
+
     try {
-      final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
-      final canAuthenticate =
-          canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
-
-      if (!canAuthenticate) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Biometric not available on this device')),
-          );
-        }
-        return false;
-      }
-
       final didAuthenticate = await _localAuth.authenticate(
         localizedReason: 'Authenticate to access your account',
       );
@@ -61,15 +69,56 @@ class AuthService extends ChangeNotifier {
         password: pass!,
       );
       return true;
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
+      String message = _getErrorMessage(e);
+      if (context.mounted) {
+        await ErrorDialog.show(
+          context,
+          title: 'Authentication Failed',
+          message: message,
+        );
+      }
       log('Biometric auth error: $e');
       return false;
+    } catch (e) {
+      log('Biometric auth error: $e');
+      if (context.mounted) {
+        await ErrorDialog.show(
+          context,
+          title: 'Authentication Failed',
+          message: 'An unexpected error occurred. Please try again.',
+        );
+      }
+      return false;
+    } finally {
+      isBiometricLoading = false;
+      notifyListeners();
     }
+  }
+
+  String _getErrorMessage(FirebaseAuthException e) {
+    return switch (e.code) {
+      'network-request-failed' =>
+        'No internet connection. Please check your connection and try again.',
+      'invalid-email' => 'The email address is invalid.',
+      'user-disabled' =>
+        'This account has been disabled. Please contact support.',
+      'user-not-found' => 'No account found with this email address.',
+      'wrong-password' || 'invalid-credential' => 'Incorrect password.',
+      'email-already-in-use' => 'This email is already in use.',
+      'weak-password' =>
+        'The password is too weak. Please use a stronger password.',
+      'operation-not-allowed' =>
+        'Sign in is currently disabled. Please try again later.',
+      'too-many-requests' => 'Too many login attempts. Please try again later.',
+      _ => 'An error occurred: ${e.message}',
+    };
   }
 
   Future<void> onSignIn(BuildContext context) async {
     if (!formKey.currentState!.validate()) return;
 
+    isLoginLoading = true;
     errorMessage = null;
     notifyListeners();
 
@@ -81,41 +130,50 @@ class AuthService extends ChangeNotifier {
       await _secureStorage.write(key: "email", value: emailController.text);
       await _secureStorage.write(key: "pass", value: passwordController.text);
     } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'email-already-in-use':
-          try {
-            await _firebaseAuth.signInWithEmailAndPassword(
-              email: emailController.text,
-              password: passwordController.text,
+      if (e.code == 'email-already-in-use') {
+        try {
+          await _firebaseAuth.signInWithEmailAndPassword(
+            email: emailController.text,
+            password: passwordController.text,
+          );
+          await _secureStorage.write(key: "email", value: emailController.text);
+          await _secureStorage.write(
+            key: "pass",
+            value: passwordController.text,
+          );
+        } on FirebaseAuthException catch (signInError) {
+          String message = _getErrorMessage(signInError);
+          if (context.mounted) {
+            await ErrorDialog.show(
+              context,
+              title: 'Login Failed',
+              message: message,
             );
-            await _secureStorage.write(key: "email", value: emailController.text);
-            await _secureStorage.write(key: "pass", value: passwordController.text);
-          } on FirebaseAuthException catch (signInError) {
-            errorMessage = switch (signInError.code) {
-              'wrong-password' || 'invalid-credential' => 'Incorrect password.',
-              _ => 'An error occurred. Please try again.',
-            };
-            notifyListeners();
           }
-        case 'weak-password':
-          errorMessage = 'The password provided is too weak.';
-          notifyListeners();
-        default:
-          errorMessage = 'An error occurred. Please try again.';
-          notifyListeners();
+        }
+      } else {
+        String message = _getErrorMessage(e);
+        if (context.mounted) {
+          await ErrorDialog.show(
+            context,
+            title: 'Sign Up Failed',
+            message: message,
+          );
+        }
+      }
+    } catch (e) {
+      log('Sign in error: $e');
+      if (context.mounted) {
+        await ErrorDialog.show(
+          context,
+          title: 'Error',
+          message: 'An unexpected error occurred. Please try again.',
+        );
       }
     } finally {
+      isLoginLoading = false;
       notifyListeners();
     }
-  }
-
-
-  Future<bool> checkPreviousSession() async {
-    final email = await _secureStorage.read(key: "email");
-    return email != null;
-    // if (mounted) {
-    //   setState(() => _hasPreviousSession = email != null);
-    // }
   }
 
   String? emailValidator(String? val) {
@@ -134,5 +192,10 @@ class AuthService extends ChangeNotifier {
       return 'At least one special character (!@#\$&*~)';
     }
     return null;
+  }
+
+  void clearError() {
+    errorMessage = null;
+    notifyListeners();
   }
 }
