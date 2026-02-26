@@ -16,7 +16,8 @@ class AppNavigator extends StatefulWidget {
   State<AppNavigator> createState() => _AppNavigatorState();
 }
 
-class _AppNavigatorState extends State<AppNavigator> with WidgetsBindingObserver {
+class _AppNavigatorState extends State<AppNavigator>
+    with WidgetsBindingObserver {
   Molecule? _currentMolecule;
   String? _currentLigandId;
   List<String> _ligands = [];
