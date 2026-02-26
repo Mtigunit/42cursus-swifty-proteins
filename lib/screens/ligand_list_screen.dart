@@ -49,9 +49,8 @@ class _LigandListScreenState extends State<LigandListScreen> {
       await widget.onLigandSelected(ligandId);
     } catch (e) {
       _showErrorDialog(
-        // TODO: improve error handling with specific messages based on error type
         'Failed to Load',
-        'Could not load ligand $ligandId. Please try again.',
+        e.toString(),
       );
     } finally {
       if (mounted) {

@@ -5,7 +5,6 @@ import 'package:swifty_proteins/screens/ligand_list_screen.dart';
 import 'package:swifty_proteins/screens/login_screen.dart';
 import 'package:swifty_proteins/screens/protein_view_screen.dart';
 import 'package:swifty_proteins/services/ligand_service.dart';
-import 'package:vector_math/vector_math.dart';
 
 /// Handles transitions between Login, List, and Protein View screens
 class AppNavigator extends StatefulWidget {
@@ -52,28 +51,9 @@ class _AppNavigatorState extends State<AppNavigator> {
     }
   }
 
-  /// Mock function to get ligand - replace with actual service
+  /// Fetch ligand data from RCSB and parse to Molecule
   Future<Molecule> _fetchLigand(String ligandId) async {
-    // TODO: Call actual fetchLigand from services
-    // This is a mock implementation
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    // Return mock molecule
-    return Molecule(
-      atoms: [
-        Atom(element: 'C', position: Vector3(0, 0, 0)),
-        Atom(element: 'O', position: Vector3(1.2, 0, 0)),
-        Atom(element: 'N', position: Vector3(-1.2, 0, 0)),
-        Atom(element: 'H', position: Vector3(0, 1.2, 0)),
-        Atom(element: 'S', position: Vector3(0, -1.2, 0)),
-      ],
-      bonds: [
-        Bond(atomIndex1: 0, atomIndex2: 1),
-        Bond(atomIndex1: 0, atomIndex2: 2),
-        Bond(atomIndex1: 0, atomIndex2: 3),
-        Bond(atomIndex1: 0, atomIndex2: 4),
-      ],
-    );
+    return await LigandService.fetchMolecule(ligandId);
   }
 
   Future<void> _handleLigandSelected(String ligandId) async {
@@ -87,10 +67,26 @@ class _AppNavigatorState extends State<AppNavigator> {
       }
     } catch (e) {
       if (mounted) {
+        String errorMessage = 'Failed to load ligand. Please try again.';
+        
+        // Map specific exception types to user-friendly messages
+        if (e is NetworkException) {
+          errorMessage = e.toString();
+        } else if (e is LigandNotFoundException) {
+          errorMessage = e.toString();
+        } else if (e is ParseException) {
+          errorMessage = e.toString();
+        } else if (e is TimeoutException) {
+          errorMessage = e.toString();
+        } else {
+          errorMessage = e.toString();
+        }
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to load ligand: $e'),
-            duration: const Duration(seconds: 3),
+            content: Text(errorMessage),
+            duration: const Duration(seconds: 4),
+            backgroundColor: const Color(0xFFFF3B30),
           ),
         );
       }
