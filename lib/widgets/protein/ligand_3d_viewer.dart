@@ -285,20 +285,25 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
   }
 
   Widget _buildViewerLayer(BuildContext context) {
-    return GestureDetector(
-      onTap: _isTooltipVisible ? _hideAtomTooltip : null,
-      child: Stack(
-        children: [
-          if (_controller != null) WebViewWidget(controller: _controller!),
-          if (_isLoading)
-            Container(
-              color: MediaQuery.of(context).platformBrightness == Brightness.dark
-                  ? const Color(0xFF0D1B2A)
-                  : const Color(0xFFF5F5F5),
-              child: const Center(child: CircularProgressIndicator()),
+    return Stack(
+      children: [
+        if (_controller != null) WebViewWidget(controller: _controller!),
+        if (_isLoading)
+          Container(
+            color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                ? const Color(0xFF0D1B2A)
+                : const Color(0xFFF5F5F5),
+            child: const Center(child: CircularProgressIndicator()),
+          ),
+        // Overlay to dismiss tooltip when tapping elsewhere
+        if (_isTooltipVisible)
+          GestureDetector(
+            onTap: _hideAtomTooltip,
+            child: Container(
+              color: Colors.transparent,
             ),
-        ],
-      ),
+          ),
+      ],
     );
   }
 
@@ -355,7 +360,10 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
       right: 16,
       child: Center(
         child: GestureDetector(
-          onTap: () {},
+          onTap: () {
+            // Prevent taps on tooltip from dismissing it
+            // only taps outside the tooltip will dismiss it
+          },
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
