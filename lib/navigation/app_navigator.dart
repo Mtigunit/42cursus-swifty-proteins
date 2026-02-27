@@ -35,11 +35,18 @@ class _AppNavigatorState extends State<AppNavigator>
     super.dispose();
   }
 
+  Future<void> _clear() async {
+    _firebaseAuth.signOut();
+    _currentLigandId = null;
+  }
+  
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       // App is backgrounded - logout user
-      unawaited(_firebaseAuth.signOut());
+      unawaited(
+        // _firebaseAuth.signOut());
+        _clear());
     }
   }
 
