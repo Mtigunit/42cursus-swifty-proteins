@@ -25,6 +25,7 @@ class ProteinViewScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: onBack,
+          tooltip: 'Back',
         ),
         actions: [
           IconButton(

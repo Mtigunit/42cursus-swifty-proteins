@@ -53,37 +53,44 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
           ),
         ],
       ),
-      child: TextField(
-        controller: _controller,
-        onChanged: widget.onChanged,
-        decoration: InputDecoration(
-          hintText: widget.placeholder,
-          prefixIcon: Icon(
-            Icons.search,
-            color: isDark ? Colors.grey[400] : Colors.grey[600],
-          ),
-          suffixIcon: _controller.text.isNotEmpty
-              ? IconButton(
-                  icon: Icon(
-                    Icons.clear,
-                    color: isDark ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                  onPressed: () {
-                    _controller.clear();
-                    widget.onChanged('');
-                    widget.onClear?.call();
-                  },
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F7),
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 12,
+      child: Semantics(
+        label: widget.placeholder,
+        textField: true,
+        child: TextField(
+          controller: _controller,
+          onChanged: widget.onChanged,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: widget.placeholder,
+            prefixIcon: Icon(
+              Icons.search,
+              color: isDark ? Colors.grey[400] : Colors.grey[600],
+            ),
+            suffixIcon: _controller.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(
+                      Icons.clear,
+                      color: isDark ? Colors.grey[400] : Colors.grey[600],
+                    ),
+                    tooltip: 'Clear search',
+                    onPressed: () {
+                      _controller.clear();
+                      widget.onChanged('');
+                      widget.onClear?.call();
+                    },
+                  )
+                : null,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            filled: true,
+            fillColor:
+                isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F7),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
           ),
         ),
       ),
