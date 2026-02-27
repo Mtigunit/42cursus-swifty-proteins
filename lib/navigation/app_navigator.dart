@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:swifty_proteins/models/molecule.dart';
 import 'package:swifty_proteins/screens/ligand_list_screen.dart';
 import 'package:swifty_proteins/screens/login_screen.dart';
 import 'package:swifty_proteins/screens/protein_view_screen.dart';
@@ -18,7 +17,6 @@ class AppNavigator extends StatefulWidget {
 
 class _AppNavigatorState extends State<AppNavigator>
     with WidgetsBindingObserver {
-  Molecule? _currentMolecule;
   String? _currentLigandId;
   List<String> _ligands = [];
   bool _isLoadingLigands = true;
@@ -69,17 +67,10 @@ class _AppNavigatorState extends State<AppNavigator>
     }
   }
 
-  /// Fetch ligand data from RCSB and parse to Molecule
-  Future<Molecule> _fetchLigand(String ligandId) async {
-    return await LigandService.fetchMolecule(ligandId);
-  }
-
   Future<void> _handleLigandSelected(String ligandId) async {
     try {
-      final molecule = await _fetchLigand(ligandId);
       if (mounted) {
         setState(() {
-          _currentMolecule = molecule;
           _currentLigandId = ligandId;
         });
       }
@@ -107,7 +98,6 @@ class _AppNavigatorState extends State<AppNavigator>
 
   void _handleBackFromProteinView() {
     setState(() {
-      _currentMolecule = null;
       _currentLigandId = null;
     });
   }
@@ -115,7 +105,6 @@ class _AppNavigatorState extends State<AppNavigator>
   Future<void> _handleLogout() async {
     await _firebaseAuth.signOut();
     setState(() {
-      _currentMolecule = null;
       _currentLigandId = null;
     });
   }
@@ -135,9 +124,8 @@ class _AppNavigatorState extends State<AppNavigator>
 
         // Authenticated — show protein view or ligand list
         if (snapshot.hasData) {
-          if (_currentMolecule != null && _currentLigandId != null) {
+          if (_currentLigandId != null) {
             return ProteinViewScreen(
-              molecule: _currentMolecule!,
               ligandId: _currentLigandId!,
               onBack: _handleBackFromProteinView,
             );
