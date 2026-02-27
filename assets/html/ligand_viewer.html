@@ -309,6 +309,11 @@
             return parts.length ? parts.join('') : 'Unknown';
         }
 
+        window.getPngDataUrl = function() {
+            if (!window.viewer) return null;
+            return window.viewer.pngURI();
+        };
+
         // Auto-load when Flutter provides the ligand URL early
         if (window.pendingLigandUrl && typeof loadMolecule === 'function') {
             loadMolecule(window.pendingLigandUrl);

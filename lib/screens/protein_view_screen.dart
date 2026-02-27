@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:swifty_proteins/widgets/protein/ligand_3d_viewer.dart';
-import 'package:swifty_proteins/models/ligand_summary.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:swifty_proteins/models/ligand_summary.dart';
+import 'package:swifty_proteins/widgets/protein/ligand_3d_viewer.dart';
 
 /// Protein View Screen - Molecule Display
 class ProteinViewScreen extends StatefulWidget {
@@ -20,6 +23,8 @@ class ProteinViewScreen extends StatefulWidget {
 
 class _ProteinViewScreenState extends State<ProteinViewScreen> {
   LigandSummary? _ligandSummary;
+  final GlobalKey<Ligand3DViewerState> _viewerKey =
+      GlobalKey<Ligand3DViewerState>();
 
   String _buildShareMessage() {
     final summary = _ligandSummary;
@@ -43,7 +48,26 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
       return;
     }
 
-    await Share.share(_buildShareMessage());
+    final pngBytes = await _viewerKey.currentState?.capturePngBytes();
+    if (pngBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to capture the ligand image yet.'),
+        ),
+      );
+      return;
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final file = File(
+      '${tempDir.path}/ligand_${widget.ligandId.toLowerCase()}.png',
+    );
+    await file.writeAsBytes(pngBytes, flush: true);
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: _buildShareMessage(),
+    );
   }
 
   @override
@@ -66,6 +90,7 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
         ],
       ),
       body: Ligand3DViewer(
+        key: _viewerKey,
         ligandId: widget.ligandId,
         onLigandSummary: (summary) {
           if (mounted) {

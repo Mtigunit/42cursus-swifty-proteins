@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -18,10 +19,10 @@ class Ligand3DViewer extends StatefulWidget {
   });
 
   @override
-  State<Ligand3DViewer> createState() => _Ligand3DViewerState();
+  State<Ligand3DViewer> createState() => Ligand3DViewerState();
 }
 
-class _Ligand3DViewerState extends State<Ligand3DViewer> {
+class Ligand3DViewerState extends State<Ligand3DViewer> {
   WebViewController? _controller;
   bool _isLoading = true;
   String? _errorMessage;
@@ -199,6 +200,36 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
         window.viewer.render();
       }
     ''');
+  }
+
+  Future<Uint8List?> capturePngBytes() async {
+    final controller = _controller;
+    if (controller == null) {
+      return null;
+    }
+
+    final result = await controller.runJavaScriptReturningResult(
+      'window.getPngDataUrl && window.getPngDataUrl()',
+    );
+
+    if (result == null) {
+      return null;
+    }
+
+    String dataUrl = result.toString();
+    try {
+      final decoded = jsonDecode(dataUrl);
+      if (decoded is String) {
+        dataUrl = decoded;
+      }
+    } catch (_) {}
+
+    if (!dataUrl.startsWith('data:image')) {
+      return null;
+    }
+
+    final base64Data = dataUrl.split(',').last;
+    return base64Decode(base64Data);
   }
 
   @override
