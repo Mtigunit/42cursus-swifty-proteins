@@ -41,7 +41,7 @@ class _LoginFormState extends State<LoginForm> {
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   textInputAction: TextInputAction.next,
-                )
+                ),
               ),
               const SizedBox(height: 20),
               _LabeledField(
@@ -60,8 +60,9 @@ class _LoginFormState extends State<LoginForm> {
                             ? Icons.visibility_outlined
                             : Icons.visibility_off_outlined,
                       ),
-                      tooltip:
-                          _obscurePassword ? 'Show password' : 'Hide password',
+                      tooltip: _obscurePassword
+                          ? 'Show password'
+                          : 'Hide password',
                       onPressed: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
                     ),

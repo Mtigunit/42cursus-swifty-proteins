@@ -85,8 +85,9 @@ class _CustomSearchBarState extends State<CustomSearchBar> {
               borderSide: BorderSide.none,
             ),
             filled: true,
-            fillColor:
-                isDark ? const Color(0xFF2C2C2E) : const Color(0xFFF5F5F7),
+            fillColor: isDark
+                ? const Color(0xFF2C2C2E)
+                : const Color(0xFFF5F5F7),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: 16,
               vertical: 12,

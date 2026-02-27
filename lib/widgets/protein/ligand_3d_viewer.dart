@@ -179,7 +179,8 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
             label: 'Loading 3D viewer',
             liveRegion: true,
             child: Container(
-              color: MediaQuery.of(context).platformBrightness == Brightness.dark
+              color:
+                  MediaQuery.of(context).platformBrightness == Brightness.dark
                   ? const Color(0xFF0D1B2A)
                   : const Color(0xFFF5F5F5),
               child: const Center(child: CircularProgressIndicator()),

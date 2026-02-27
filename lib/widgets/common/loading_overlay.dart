@@ -18,10 +18,7 @@ class LoadingOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        ExcludeSemantics(
-          excluding: isLoading,
-          child: child,
-        ),
+        ExcludeSemantics(excluding: isLoading, child: child),
         if (isLoading)
           Semantics(
             label: message ?? 'Loading',
@@ -51,10 +48,7 @@ class LoadingOverlay extends StatelessWidget {
                           message!,
                           style: Theme.of(
                             context,
-                          )
-                              .textTheme
-                              .bodyMedium
-                              ?.copyWith(color: Colors.white),
+                          ).textTheme.bodyMedium?.copyWith(color: Colors.white),
                           textAlign: TextAlign.center,
                         ),
                       ],

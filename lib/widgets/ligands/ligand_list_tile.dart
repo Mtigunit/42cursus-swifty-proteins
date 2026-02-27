@@ -76,10 +76,9 @@ class _LigandListTileState extends State<LigandListTile>
                   end: Alignment.bottomRight,
                   colors: [
                     Theme.of(context).colorScheme.surface,
-                    Theme.of(context)
-                        .colorScheme
-                        .surface
-                        .withValues(alpha: 0.8),
+                    Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.8),
                   ],
                 ),
               ),
