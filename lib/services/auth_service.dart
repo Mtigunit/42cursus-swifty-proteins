@@ -117,26 +117,26 @@ class AuthService extends ChangeNotifier {
 
   Future<void> onSignIn(BuildContext context) async {
     if (!formKey.currentState!.validate()) return;
-
+    final email = "${emailController.text}@swifty.pro";
     isLoginLoading = true;
     errorMessage = null;
     notifyListeners();
 
     try {
       await _firebaseAuth.createUserWithEmailAndPassword(
-        email: emailController.text,
+        email: email,
         password: passwordController.text,
       );
-      await _secureStorage.write(key: "email", value: emailController.text);
+      await _secureStorage.write(key: "email", value: email);
       await _secureStorage.write(key: "pass", value: passwordController.text);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         try {
           await _firebaseAuth.signInWithEmailAndPassword(
-            email: emailController.text,
+            email: email,
             password: passwordController.text,
           );
-          await _secureStorage.write(key: "email", value: emailController.text);
+          await _secureStorage.write(key: "email", value: email);
           await _secureStorage.write(
             key: "pass",
             value: passwordController.text,
@@ -176,12 +176,6 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  String? emailValidator(String? val) {
-    if (val == null || val.isEmpty) return 'Email is required';
-    final emailRegex = RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(val)) return 'Enter a valid email';
-    return null;
-  }
 
   String? passwordValidator(String? val) {
     if (val == null || val.isEmpty) return 'Password is required';
