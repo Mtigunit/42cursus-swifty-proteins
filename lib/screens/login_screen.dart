@@ -78,8 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   _authService.isBiometricLoading,
                             ),
                             const SizedBox(height: 16),
-                            if (_hasPreviousSession &&
-                                _authService.isBiometricAvailable) ...[
+                            if (_hasPreviousSession) ...[
                               const OrDivider(),
                               const SizedBox(height: 16),
                               BiometricSection(
