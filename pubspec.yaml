@@ -102,7 +102,7 @@ flutter:
   # To add assets to your application, add an assets section, like this:
   assets:
     - assets/ligands.txt
-    - assets/ligand_viewer.html
+    - assets/html/ligand_viewer.html
     - assets/splash/
     - assets/icon/
 

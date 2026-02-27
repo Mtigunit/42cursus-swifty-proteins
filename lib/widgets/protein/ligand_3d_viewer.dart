@@ -41,7 +41,7 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
     try {
       // Load the HTML file from assets
       final String htmlContent = await rootBundle.loadString(
-        'assets/ligand_viewer.html',
+        'assets/html/ligand_viewer.html',
       );
 
       // Build the SDF URL for the ligand
