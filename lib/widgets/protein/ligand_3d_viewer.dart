@@ -78,14 +78,38 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
                 if (typeof setBackgroundColor === 'function') {
                   setBackgroundColor('$colorHex');
                 }
-                window.ligandData = '$sdfUrl';
-                if (typeof loadMolecule === 'function') {
-                  loadMolecule('$sdfUrl');
-                }
+                (function initLigand() {
+                  if (typeof setLigandData === 'function') {
+                    setLigandData('$sdfUrl');
+                    if (typeof setStyle === 'function') {
+                      setStyle('$_currentStyle');
+                    }
+                    if (typeof ensureMoleculeLoaded === 'function') {
+                      ensureMoleculeLoaded();
+                    }
+                  } else {
+                    setTimeout(initLigand, 50);
+                  }
+                })();
               ''');
 
               setState(() {
                 _isLoading = false;
+              });
+
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _controller?.runJavaScript('''
+                  if (window.viewer) {
+                    window.viewer.resize();
+                    window.viewer.render();
+                  }
+                  if (typeof ensureMoleculeLoaded === 'function') {
+                    ensureMoleculeLoaded();
+                  }
+                  if (typeof requestRender === 'function') {
+                    requestRender();
+                  }
+                ''');
               });
             },
             onWebResourceError: (WebResourceError error) {
@@ -127,6 +151,12 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
   void _handleAtomClick(String jsonData) {
     try {
       final atomData = jsonDecode(jsonData) as Map<String, dynamic>;
+      
+      if (atomData['hideTooltip'] == true) {
+        _hideAtomTooltip();
+        return;
+      }
+      
       _showAtomTooltip(atomData);
     } catch (e) {
       print('Error parsing atom data: $e');
@@ -257,39 +287,190 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
   }
 
   Widget _buildAtomTooltip(BuildContext context) {
+    final elem = _currentAtomData!['elem'] ?? 'Unknown';
+    final name = _currentAtomData!['name'] ?? elem;
+    final resn = (_currentAtomData!['resn'] as String?) ?? '';
+    final resi = (_currentAtomData!['resi'] as String?) ?? '';
+    final x = _currentAtomData!['x'] ?? '0.00';
+    final y = _currentAtomData!['y'] ?? '0.00';
+    final z = _currentAtomData!['z'] ?? '0.00';
+    final serial = _currentAtomData!['serial'] ?? 0;
+    
+    // Determine text color based on element
+    final isHydrogen = elem == 'H';
+    final textColor = isHydrogen ? Colors.black : Colors.white;
+    final labelColor = isHydrogen 
+        ? Colors.black.withOpacity(0.7) 
+        : Colors.white.withOpacity(0.7);
+    final secondaryTextColor = isHydrogen 
+        ? Colors.black.withOpacity(0.6) 
+        : Colors.white.withOpacity(0.6);
+
     return Positioned(
       top: 100,
-      left: 0,
-      right: 0,
+      left: 16,
+      right: 16,
       child: Center(
         child: GestureDetector(
           onTap: () {},
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Color(
-                _currentAtomData!['elem'] == 'C'
+                elem == 'C'
                     ? 0xFF333333
                     : (_currentAtomData!['color'] as int? ?? 0xFFFFFFFF),
-              ).withOpacity(0.9),
+              ).withOpacity(0.95),
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 6,
-                  offset: const Offset(0, 3),
-                  spreadRadius: 1,
+                  color: Colors.black.withOpacity(0.4),
+                  blurRadius: 8,
+                  offset: const Offset(0, 4),
+                  spreadRadius: 2,
                 ),
               ],
             ),
-            child: Text(
-              _currentAtomData!['elem'] ?? 'Unknown',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                color: _currentAtomData!['elem'] == 'H'
-                    ? const Color(0xFF333333)
-                    : Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          elem,
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: elem == 'H' ? Colors.black : Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: textColor.withOpacity(0.8),
+                            ),
+                          ),
+                          Text(
+                            'Serial: $serial',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: secondaryTextColor,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Coordinates',
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: labelColor,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'X: $x',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: textColor,
+                          fontSize: 11,
+                        ),
+                      ),
+                      Text(
+                        'Y: $y',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: textColor,
+                          fontSize: 11,
+                        ),
+                      ),
+                      Text(
+                        'Z: $z',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: textColor,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (resn.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Residue',
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: labelColor,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              resn,
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: textColor,
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (resi.isNotEmpty)
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Res Index',
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: labelColor,
+                                  fontSize: 10,
+                                ),
+                              ),
+                              Text(
+                                resi,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: textColor,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ],
             ),
           ),
         ),
