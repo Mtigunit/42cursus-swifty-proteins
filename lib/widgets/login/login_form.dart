@@ -35,6 +35,7 @@ class _LoginFormState extends State<LoginForm> {
                 label: 'Username',
                 child: TextFormField(
                   controller: widget.authService.emailController,
+                  validator: widget.authService.usernameValidator,
                   enabled: true,
                   decoration: const InputDecoration(
                     hintText: 'Enter your username',

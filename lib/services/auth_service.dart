@@ -188,6 +188,16 @@ class AuthService extends ChangeNotifier {
     return null;
   }
 
+  String? usernameValidator(String? val) {
+    if (val == null || val.isEmpty) return 'Username is required';
+    if (val.length < 3) return 'At least 3 characters';
+    if (val.length > 20) return 'No more than 20 characters';
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(val)) {
+      return 'Only letters, numbers, and underscores allowed';
+    }
+    return null;
+  }
+
   void clearError() {
     errorMessage = null;
     notifyListeners();
