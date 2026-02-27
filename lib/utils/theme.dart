@@ -21,7 +21,7 @@ class SwiftyTheme {
   static const Color lightSurfaceColor = Color(0xFFFFFFFF);
   static const Color lightCardColor = Color(0xFFF5F5F7);
   static const Color lightTextPrimary = Color(0xFF1D1D1D);
-  static const Color lightTextSecondary = Color(0xFF86868B);
+  static const Color lightTextSecondary = Color(0xFF5F5F66);
   static const Color lightDivider = Color(0xFFE5E5EA);
   static const Color lightBorder = Color(0xFFD1D1D6);
 

@@ -164,15 +164,27 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
 
     return Stack(
       children: [
-        if (_controller != null) WebViewWidget(controller: _controller!),
+        if (_controller != null)
+          ExcludeSemantics(
+            excluding: _isLoading,
+            child: Semantics(
+              label: '3D molecule viewer for ${widget.ligandId.toUpperCase()}',
+              child: WebViewWidget(controller: _controller!),
+            ),
+          ),
 
         // Loading indicator
         if (_isLoading)
-          Container(
-            color: MediaQuery.of(context).platformBrightness == Brightness.dark
-                ? const Color(0xFF0D1B2A)
-                : const Color(0xFFF5F5F5),
-            child: const Center(child: CircularProgressIndicator()),
+          Semantics(
+            label: 'Loading 3D viewer',
+            liveRegion: true,
+            child: Container(
+              color:
+                  MediaQuery.of(context).platformBrightness == Brightness.dark
+                  ? const Color(0xFF0D1B2A)
+                  : const Color(0xFFF5F5F5),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
           ),
 
         // Control buttons

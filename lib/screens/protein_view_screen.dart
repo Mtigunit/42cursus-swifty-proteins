@@ -25,6 +25,7 @@ class ProteinViewScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: onBack,
+          tooltip: 'Back',
         ),
         actions: [
           IconButton(
@@ -51,10 +52,7 @@ class ProteinViewScreen extends StatelessWidget {
               _InfoRow(label: 'Atoms', value: '${molecule.atoms.length}'),
               _InfoRow(label: 'Bonds', value: '${molecule.bonds.length}'),
               const SizedBox(height: 16),
-              Text(
-                'Atom Types',
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
+              Text('Atom Types', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 8),
               ..._getAtomTypeCounts().entries.map(
                 (entry) => Padding(
@@ -99,14 +97,11 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text(value, style: Theme.of(context).textTheme.bodyMedium),
         ],
       ),
     );

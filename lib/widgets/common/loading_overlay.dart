@@ -18,38 +18,42 @@ class LoadingOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        child,
+        ExcludeSemantics(excluding: isLoading, child: child),
         if (isLoading)
-          AnimatedOpacity(
-            opacity: isLoading ? 1.0 : 0.0,
-            duration: const Duration(milliseconds: 200),
-            child: Container(
-              color: Colors.black.withValues(alpha: 0.4),
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const SizedBox(
-                      width: 50,
-                      height: 50,
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF00D9FF),
+          Semantics(
+            label: message ?? 'Loading',
+            liveRegion: true,
+            child: AnimatedOpacity(
+              opacity: isLoading ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 200),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.4),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        width: 50,
+                        height: 50,
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Color(0xFF00D9FF),
+                          ),
+                          strokeWidth: 3,
                         ),
-                        strokeWidth: 3,
                       ),
-                    ),
-                    if (message != null) ...[
-                      const SizedBox(height: 16),
-                      Text(
-                        message!,
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyMedium?.copyWith(color: Colors.white),
-                        textAlign: TextAlign.center,
-                      ),
+                      if (message != null) ...[
+                        const SizedBox(height: 16),
+                        Text(
+                          message!,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyMedium?.copyWith(color: Colors.white),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
