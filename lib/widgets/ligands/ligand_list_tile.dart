@@ -46,6 +46,7 @@ class _LigandListTileState extends State<LigandListTile>
 
   @override
   Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
     return ScaleTransition(
       scale: _scaleAnimation,
       child: Semantics(
@@ -88,15 +89,11 @@ class _LigandListTileState extends State<LigandListTile>
                     width: 50,
                     height: 50,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF0066CC).withValues(alpha: 0.1),
+                      color: primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.science,
-                        color: Color(0xFF0066CC),
-                        size: 24,
-                      ),
+                    child: Center(
+                      child: Icon(Icons.science, color: primary, size: 24),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -118,26 +115,43 @@ class _LigandListTileState extends State<LigandListTile>
                             overflow: TextOverflow.ellipsis,
                           ),
                         ],
+                        const SizedBox(height: 6),
+
+                        // Small Metadata Badge
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            "RCSB Ligand",
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  color: Theme.of(context).colorScheme.primary,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
                   if (widget.isLoading)
-                    const SizedBox(
+                    SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          Color(0xFF00D9FF),
-                        ),
+                        valueColor: AlwaysStoppedAnimation<Color>(primary),
                       ),
                     )
                   else
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      size: 16,
-                      color: Theme.of(context).textTheme.bodySmall?.color,
-                    ),
+                    Icon(Icons.arrow_forward_ios, size: 16, color: primary),
                 ],
               ),
             ),
