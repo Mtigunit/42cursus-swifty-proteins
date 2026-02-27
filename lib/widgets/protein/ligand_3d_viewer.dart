@@ -2,16 +2,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import 'package:swifty_proteins/models/ligand_summary.dart';
 
 /// 3D Ligand Viewer Widget using WebView and 3Dmol.js
 class Ligand3DViewer extends StatefulWidget {
   final String ligandId;
   final String baseUrl;
+  final ValueChanged<LigandSummary>? onLigandSummary;
 
   const Ligand3DViewer({
     super.key,
     required this.ligandId,
     this.baseUrl = 'https://files.rcsb.org/ligands/view',
+    this.onLigandSummary,
   });
 
   @override
@@ -151,6 +154,15 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
   void _handleAtomClick(String jsonData) {
     try {
       final atomData = jsonDecode(jsonData) as Map<String, dynamic>;
+
+      if (atomData['type'] == 'ligandSummary') {
+        final atomCount = (atomData['atomCount'] as num?)?.toInt() ?? 0;
+        final formula = atomData['formula'] as String? ?? 'Unknown';
+        widget.onLigandSummary?.call(
+          LigandSummary(atomCount: atomCount, formula: formula),
+        );
+        return;
+      }
       
       if (atomData['hideTooltip'] == true) {
         _hideAtomTooltip();

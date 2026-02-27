@@ -156,6 +156,26 @@
                     
                     // Add the model from SDF data
                     viewer.addModel(sdfData, "sdf");
+
+                    // Send ligand summary to Flutter
+                    const model = viewer.getModel();
+                    if (model && window.FlutterChannel) {
+                        const atoms = model.selectedAtoms({});
+                        const counts = {};
+                        atoms.forEach(atom => {
+                            const elem = (atom.elem || '').trim();
+                            if (!elem) return;
+                            counts[elem] = (counts[elem] || 0) + 1;
+                        });
+                        const formula = buildFormula(counts);
+                        window.FlutterChannel.postMessage(
+                            JSON.stringify({
+                                type: 'ligandSummary',
+                                atomCount: atoms.length,
+                                formula: formula
+                            })
+                        );
+                    }
                     
                     // Set default style using the same pathway as the UI
                     setStyle('ballStick');
@@ -270,6 +290,23 @@
             };
             
             return styles[styleName] || styles['ballStick'];
+        }
+
+        function buildFormula(counts) {
+            const parts = [];
+            if (counts.C) {
+                parts.push('C' + (counts.C > 1 ? counts.C : ''));
+            }
+            if (counts.H) {
+                parts.push('H' + (counts.H > 1 ? counts.H : ''));
+            }
+            const others = Object.keys(counts)
+                .filter(elem => elem !== 'C' && elem !== 'H')
+                .sort();
+            others.forEach(elem => {
+                parts.push(elem + (counts[elem] > 1 ? counts[elem] : ''));
+            });
+            return parts.length ? parts.join('') : 'Unknown';
         }
 
         // Auto-load when Flutter provides the ligand URL early
