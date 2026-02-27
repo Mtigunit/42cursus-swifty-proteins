@@ -80,6 +80,12 @@
         viewer = $3Dmol.createViewer(element, config);
         window.viewer = viewer;
         
+        // CPK color scheme for atoms
+        window.cpkColors = {
+            prop: "elem",
+            map: { C: 0x333333 }
+        };
+        
         // Function to load and display molecule
         function loadMolecule(sdfUrl) {
             const loadingDiv = document.getElementById('loading');
@@ -103,22 +109,35 @@
                     viewer.addModel(sdfData, "sdf");
                     
                     // Set style - ball and stick representation
-                    
-                    
                     viewer.setStyle(
-                        // Empty object = Apply style to ALL atoms in the molecule
                         {}, 
-                        // This defines TWO visual representations simultaneously (ball-and-stick model):
                         {
-                        stick: {
-                            radius: 0.15,
-                            colorscheme: 'Jmol'
-                        },
-                        sphere: {
-                            radius: 0.4,
-                            colorscheme: 'Jmol'
+                            stick: {
+                                radius: 0.15,
+                                colorscheme: window.cpkColors
+                            },
+                            sphere: {
+                                radius: 0.3,
+                                colorscheme: window.cpkColors
+                            }
                         }
-                    });
+                    );
+                    
+                    // Make atoms clickable
+                    viewer.setClickable(
+                        {},
+                        true,
+                        function(atom, viewer, event, container) {
+                            if (window.FlutterChannel) {
+                                const atomData = {
+                                    elem: atom.elem,
+                                    serial: atom.serial,
+                                    color: atom.color
+                                };
+                                window.FlutterChannel.postMessage(JSON.stringify(atomData));
+                            }
+                        }
+                    );
                     
                     // Center and zoom to fit the molecule
                     viewer.zoomTo();
@@ -154,23 +173,23 @@
                 'stick': {
                     stick: {
                         radius: 0.15,
-                        colorscheme: 'Jmol'
+                        colorscheme: window.cpkColors
                     }
                 },
                 'sphere': {
                     sphere: {
                         radius: 1.0,
-                        colorscheme: 'Jmol'
+                        colorscheme: window.cpkColors
                     }
                 },
                 'ballStick': {
                     stick: {
                         radius: 0.15,
-                        colorscheme: 'Jmol'
+                        colorscheme: window.cpkColors
                     },
                     sphere: {
-                        radius: 0.4,
-                        colorscheme: 'Jmol'
+                        radius: 0.3,
+                        colorscheme: window.cpkColors
                     }
                 },
                 'cartoon': {
@@ -180,7 +199,7 @@
                 },
                 'line': {
                     line: {
-                        colorscheme: 'Jmol'
+                        colorscheme: window.cpkColors
                     }
                 }
             };

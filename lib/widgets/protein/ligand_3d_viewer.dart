@@ -23,6 +23,10 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
   bool _isLoading = true;
   String? _errorMessage;
   String _currentStyle = 'ballStick';
+  
+  // Atom click handling
+  Map<String, dynamic>? _currentAtomData;
+  bool _isTooltipVisible = false;
 
   final Map<String, String> _styles = {
     'ballStick': 'Ball & Stick',
@@ -60,6 +64,12 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
         // ..setBackgroundColor(backgroundColor)
+        ..addJavaScriptChannel(
+          'FlutterChannel',
+          onMessageReceived: (JavaScriptMessage message) {
+            _handleAtomClick(message.message);
+          },
+        )
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageFinished: (String url) {
@@ -114,6 +124,31 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
     });
   }
 
+  void _handleAtomClick(String jsonData) {
+    try {
+      final atomData = jsonDecode(jsonData) as Map<String, dynamic>;
+      _showAtomTooltip(atomData);
+    } catch (e) {
+      print('Error parsing atom data: $e');
+    }
+  }
+
+  void _showAtomTooltip(Map<String, dynamic> atomData) {
+    setState(() {
+      _currentAtomData = atomData;
+      _isTooltipVisible = true;
+    });
+  }
+
+  void _hideAtomTooltip() {
+    if (mounted) {
+      setState(() {
+        _currentAtomData = null;
+        _isTooltipVisible = false;
+      });
+    }
+  }
+
   void _resetView() {
     _controller?.runJavaScript('''
       if (window.viewer) {
@@ -127,83 +162,138 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
   @override
   Widget build(BuildContext context) {
     if (_errorMessage != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 64),
-              const SizedBox(height: 16),
-              Text(
-                'Error Loading Molecule',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _errorMessage!,
-                style: Theme.of(context).textTheme.bodyMedium,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _errorMessage = null;
-                    _isLoading = true;
-                  });
-                  _initializeWebView();
-                },
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _buildErrorState(context);
     }
 
     return Stack(
       children: [
-        if (_controller != null) WebViewWidget(controller: _controller!),
+        _buildViewerLayer(context),
+        if (!_isLoading) _buildControlButtons(context),
+        if (_isTooltipVisible && _currentAtomData != null)
+          _buildAtomTooltip(context),
+      ],
+    );
+  }
 
-        // Loading indicator
-        if (_isLoading)
-          Container(
-            color: MediaQuery.of(context).platformBrightness == Brightness.dark
-                ? const Color(0xFF0D1B2A)
-                : const Color(0xFFF5F5F5),
-            child: const Center(child: CircularProgressIndicator()),
+  Widget _buildErrorState(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 64),
+            const SizedBox(height: 16),
+            Text(
+              'Error Loading Molecule',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _errorMessage!,
+              style: Theme.of(context).textTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _errorMessage = null;
+                  _isLoading = true;
+                });
+                _initializeWebView();
+              },
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildViewerLayer(BuildContext context) {
+    return GestureDetector(
+      onTap: _isTooltipVisible ? _hideAtomTooltip : null,
+      child: Stack(
+        children: [
+          if (_controller != null) WebViewWidget(controller: _controller!),
+          if (_isLoading)
+            Container(
+              color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                  ? const Color(0xFF0D1B2A)
+                  : const Color(0xFFF5F5F5),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControlButtons(BuildContext context) {
+    return Positioned(
+      bottom: 16,
+      right: 16,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          FloatingActionButton(
+            heroTag: 'style_button',
+            mini: true,
+            onPressed: () => _showStylePicker(context),
+            tooltip: 'Change Style',
+            child: const Icon(Icons.palette),
           ),
+          const SizedBox(height: 8),
+          FloatingActionButton(
+            heroTag: 'reset_button',
+            mini: true,
+            onPressed: _resetView,
+            tooltip: 'Reset View',
+            child: const Icon(Icons.refresh),
+          ),
+        ],
+      ),
+    );
+  }
 
-        // Control buttons
-        if (!_isLoading)
-          Positioned(
-            bottom: 16,
-            right: 16,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Style selector
-                FloatingActionButton(
-                  heroTag: 'style_button',
-                  mini: true,
-                  onPressed: () => _showStylePicker(context),
-                  tooltip: 'Change Style',
-                  child: const Icon(Icons.palette),
-                ),
-                const SizedBox(height: 8),
-                // Reset view button
-                FloatingActionButton(
-                  heroTag: 'reset_button',
-                  mini: true,
-                  onPressed: _resetView,
-                  tooltip: 'Reset View',
-                  child: const Icon(Icons.refresh),
+  Widget _buildAtomTooltip(BuildContext context) {
+    return Positioned(
+      top: 100,
+      left: 0,
+      right: 0,
+      child: Center(
+        child: GestureDetector(
+          onTap: () {},
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Color(
+                _currentAtomData!['elem'] == 'C'
+                    ? 0xFF333333
+                    : (_currentAtomData!['color'] as int? ?? 0xFFFFFFFF),
+              ).withOpacity(0.9),
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 6,
+                  offset: const Offset(0, 3),
+                  spreadRadius: 1,
                 ),
               ],
             ),
+            child: Text(
+              _currentAtomData!['elem'] ?? 'Unknown',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: _currentAtomData!['elem'] == 'H'
+                    ? const Color(0xFF333333)
+                    : Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
-      ],
+        ),
+      ),
     );
   }
 
