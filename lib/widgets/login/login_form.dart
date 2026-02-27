@@ -32,17 +32,16 @@ class _LoginFormState extends State<LoginForm> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _LabeledField(
-                label: 'Email',
+                label: 'Username',
                 child: TextFormField(
                   controller: widget.authService.emailController,
-                  validator: widget.authService.emailValidator,
                   enabled: true,
                   decoration: const InputDecoration(
-                    hintText: 'Enter your email',
+                    hintText: 'Enter your username',
                     prefixIcon: Icon(Icons.person_outline),
                   ),
                   textInputAction: TextInputAction.next,
-                ),
+                )
               ),
               const SizedBox(height: 20),
               _LabeledField(
