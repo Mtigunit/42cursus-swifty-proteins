@@ -54,6 +54,7 @@ dependencies:
   http: ^1.1.0
   vector_math: ^2.2.0
   flutter_secure_storage: ^9.2.2
+  path_provider: ^2.1.4
   
   # WebView for 3D molecule visualization
   webview_flutter: ^4.10.0

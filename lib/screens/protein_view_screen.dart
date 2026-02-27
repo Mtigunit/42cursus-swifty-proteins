@@ -1,108 +1,98 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:swifty_proteins/models/molecule.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:swifty_proteins/models/ligand_summary.dart';
 import 'package:swifty_proteins/widgets/protein/ligand_3d_viewer.dart';
 
 /// Protein View Screen - Molecule Display
-class ProteinViewScreen extends StatelessWidget {
-  final Molecule molecule;
+class ProteinViewScreen extends StatefulWidget {
   final String ligandId;
   final VoidCallback onBack;
 
   const ProteinViewScreen({
     super.key,
-    required this.molecule,
     required this.ligandId,
     required this.onBack,
   });
 
   @override
+  State<ProteinViewScreen> createState() => _ProteinViewScreenState();
+}
+
+class _ProteinViewScreenState extends State<ProteinViewScreen> {
+  LigandSummary? _ligandSummary;
+  final GlobalKey<Ligand3DViewerState> _viewerKey =
+      GlobalKey<Ligand3DViewerState>();
+
+  String _buildShareMessage() {
+    final summary = _ligandSummary;
+    final ligandName = widget.ligandId.toUpperCase();
+
+    if (summary == null) {
+      return 'Ligand $ligandName';
+    }
+
+    return 'Ligand $ligandName has ${summary.atomCount} atoms. '
+        'Molecular formula: ${summary.formula}.';
+  }
+
+  Future<void> _shareLigand() async {
+    if (_ligandSummary == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Molecule details are still loading.')),
+      );
+      return;
+    }
+
+    final pngBytes = await _viewerKey.currentState?.capturePngBytes();
+    if (pngBytes == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to capture the ligand image yet.'),
+        ),
+      );
+      return;
+    }
+
+    final tempDir = await getTemporaryDirectory();
+    final file = File(
+      '${tempDir.path}/ligand_${widget.ligandId.toLowerCase()}.png',
+    );
+    await file.writeAsBytes(pngBytes, flush: true);
+
+    await Share.shareXFiles([XFile(file.path)], text: _buildShareMessage());
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(ligandId.toUpperCase()),
+        title: Text(widget.ligandId.toUpperCase()),
         centerTitle: false,
         elevation: 0.5,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
-          onPressed: onBack,
+          onPressed: widget.onBack,
           tooltip: 'Back',
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () => _showMoleculeInfo(context),
-            tooltip: 'Molecule Info',
+            icon: const Icon(Icons.share),
+            onPressed: _shareLigand,
+            tooltip: 'Share',
           ),
         ],
       ),
-      body: Ligand3DViewer(ligandId: ligandId),
-    );
-  }
-
-  void _showMoleculeInfo(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(ligandId.toUpperCase()),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _InfoRow(label: 'Atoms', value: '${molecule.atoms.length}'),
-              _InfoRow(label: 'Bonds', value: '${molecule.bonds.length}'),
-              const SizedBox(height: 16),
-              Text('Atom Types', style: Theme.of(context).textTheme.titleSmall),
-              const SizedBox(height: 8),
-              ..._getAtomTypeCounts().entries.map(
-                (entry) => Padding(
-                  padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
-                  child: Text('${entry.key}: ${entry.value}'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Map<String, int> _getAtomTypeCounts() {
-    final counts = <String, int>{};
-    for (final atom in molecule.atoms) {
-      counts[atom.element] = (counts[atom.element] ?? 0) + 1;
-    }
-    return counts;
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          Text(value, style: Theme.of(context).textTheme.bodyMedium),
-        ],
+      body: Ligand3DViewer(
+        key: _viewerKey,
+        ligandId: widget.ligandId,
+        onLigandSummary: (summary) {
+          if (mounted) {
+            setState(() => _ligandSummary = summary);
+          }
+        },
       ),
     );
   }
