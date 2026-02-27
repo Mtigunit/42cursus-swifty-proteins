@@ -86,7 +86,9 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Image.asset(_logoAsset, width: 90, height: 90),
+                    ExcludeSemantics(
+                      child: Image.asset(_logoAsset, width: 90, height: 90),
+                    ),
                     const SizedBox(height: 40),
                     AppTitle(context: context),
                     const SizedBox(height: 40),

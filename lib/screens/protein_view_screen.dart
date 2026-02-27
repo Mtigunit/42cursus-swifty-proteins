@@ -41,9 +41,7 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
   Future<void> _shareLigand() async {
     if (_ligandSummary == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Molecule details are still loading.'),
-        ),
+        const SnackBar(content: Text('Molecule details are still loading.')),
       );
       return;
     }
@@ -64,10 +62,7 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
     );
     await file.writeAsBytes(pngBytes, flush: true);
 
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: _buildShareMessage(),
-    );
+    await Share.shareXFiles([XFile(file.path)], text: _buildShareMessage());
   }
 
   @override
@@ -80,6 +75,7 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios),
           onPressed: widget.onBack,
+          tooltip: 'Back',
         ),
         actions: [
           IconButton(

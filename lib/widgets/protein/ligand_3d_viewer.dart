@@ -27,7 +27,7 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
   bool _isLoading = true;
   String? _errorMessage;
   String _currentStyle = 'ballStick';
-  
+
   // Atom click handling
   Map<String, dynamic>? _currentAtomData;
   bool _isTooltipVisible = false;
@@ -164,12 +164,12 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
         );
         return;
       }
-      
+
       if (atomData['hideTooltip'] == true) {
         _hideAtomTooltip();
         return;
       }
-      
+
       _showAtomTooltip(atomData);
     } catch (e) {
       print('Error parsing atom data: $e');
@@ -211,10 +211,6 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
     final result = await controller.runJavaScriptReturningResult(
       'window.getPngDataUrl && window.getPngDataUrl()',
     );
-
-    if (result == null) {
-      return null;
-    }
 
     String dataUrl = result.toString();
     try {
@@ -289,19 +285,22 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
       children: [
         if (_controller != null) WebViewWidget(controller: _controller!),
         if (_isLoading)
-          Container(
-            color: MediaQuery.of(context).platformBrightness == Brightness.dark
-                ? const Color(0xFF0D1B2A)
-                : const Color(0xFFF5F5F5),
-            child: const Center(child: CircularProgressIndicator()),
+          Semantics(
+            label: 'Loading 3D viewer',
+            liveRegion: true,
+            child: Container(
+              color:
+                  MediaQuery.of(context).platformBrightness == Brightness.dark
+                  ? const Color(0xFF0D1B2A)
+                  : const Color(0xFFF5F5F5),
+              child: const Center(child: CircularProgressIndicator()),
+            ),
           ),
         // Overlay to dismiss tooltip when tapping elsewhere
         if (_isTooltipVisible)
           GestureDetector(
             onTap: _hideAtomTooltip,
-            child: Container(
-              color: Colors.transparent,
-            ),
+            child: Container(color: Colors.transparent),
           ),
       ],
     );
@@ -343,16 +342,16 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
     final y = _currentAtomData!['y'] ?? '0.00';
     final z = _currentAtomData!['z'] ?? '0.00';
     final serial = _currentAtomData!['serial'] ?? 0;
-    
+
     // Determine text color based on element
     final isHydrogen = elem == 'H';
     final textColor = isHydrogen ? Colors.black : Colors.white;
-    final labelColor = isHydrogen 
-        ? Colors.black.withOpacity(0.7) 
-        : Colors.white.withOpacity(0.7);
-    final secondaryTextColor = isHydrogen 
-        ? Colors.black.withOpacity(0.6) 
-        : Colors.white.withOpacity(0.6);
+    final labelColor = isHydrogen
+        ? Colors.black.withValues(alpha: 0.7)
+        : Colors.white.withValues(alpha: 0.7);
+    final secondaryTextColor = isHydrogen
+        ? Colors.black.withValues(alpha: 0.6)
+        : Colors.white.withValues(alpha: 0.6);
 
     return Positioned(
       top: 100,
@@ -371,11 +370,11 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
                 elem == 'C'
                     ? 0xFF333333
                     : (_currentAtomData!['color'] as int? ?? 0xFFFFFFFF),
-              ).withOpacity(0.95),
+              ).withValues(alpha: 0.95),
               borderRadius: BorderRadius.circular(8),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.4),
+                  color: Colors.black.withValues(alpha: 0.4),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                   spreadRadius: 2,
@@ -392,16 +391,19 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
                       width: 40,
                       height: 40,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Center(
                         child: Text(
                           elem,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            color: elem == 'H' ? Colors.black : Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: Theme.of(context).textTheme.titleLarge
+                              ?.copyWith(
+                                color: elem == 'H'
+                                    ? Colors.black
+                                    : Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                         ),
                       ),
                     ),
@@ -412,16 +414,18 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
                         children: [
                           Text(
                             name,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: textColor.withOpacity(0.8),
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: textColor.withValues(alpha: 0.8),
+                                ),
                           ),
                           Text(
                             'Serial: $serial',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: secondaryTextColor,
-                              fontSize: 11,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: secondaryTextColor,
+                                  fontSize: 11,
+                                ),
                           ),
                         ],
                       ),
@@ -433,7 +437,7 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
+                    color: Colors.white.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Column(
@@ -481,17 +485,13 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
                           children: [
                             Text(
                               'Residue',
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: labelColor,
-                                fontSize: 10,
-                              ),
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: labelColor, fontSize: 10),
                             ),
                             Text(
                               resn,
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: textColor,
-                                fontSize: 11,
-                              ),
+                              style: Theme.of(context).textTheme.bodySmall
+                                  ?.copyWith(color: textColor, fontSize: 11),
                             ),
                           ],
                         ),
@@ -503,17 +503,13 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
                             children: [
                               Text(
                                 'Res Index',
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: labelColor,
-                                  fontSize: 10,
-                                ),
+                                style: Theme.of(context).textTheme.labelSmall
+                                    ?.copyWith(color: labelColor, fontSize: 10),
                               ),
                               Text(
                                 resi,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: textColor,
-                                  fontSize: 11,
-                                ),
+                                style: Theme.of(context).textTheme.bodySmall
+                                    ?.copyWith(color: textColor, fontSize: 11),
                               ),
                             ],
                           ),
