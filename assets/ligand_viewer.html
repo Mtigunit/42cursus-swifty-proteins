@@ -16,7 +16,6 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background-color: #0D1B2A;
         }
         
         #viewer-container {
@@ -57,12 +56,23 @@
     </div>
 
     <script>
+        // Set initial background color from Flutter (default to dark)
+        let backgroundColorHex = '#0D1B2A';
+        window.setBackgroundColor = function(color) {
+            backgroundColorHex = color;
+            document.body.style.backgroundColor = color;
+            if (viewer) {
+                viewer.setBackgroundColor(color);
+                viewer.render();
+            }
+        };
+        
         // Initialize 3Dmol viewer
         let viewer;
         let element = document.getElementById('viewer-container');
-        // Dark blue background with smooth rendering and no distance blur for optimal molecular visualization
+        // Apply dynamic background color with smooth rendering and no distance blur for optimal molecular visualization
         let config = { 
-            backgroundColor: '#0D1B2A',
+            backgroundColor: backgroundColorHex,
             antialias: true,
             disableFog: true
         };

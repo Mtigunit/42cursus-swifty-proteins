@@ -40,27 +40,40 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
   Future<void> _initializeWebView() async {
     try {
       // Load the HTML file from assets
-      final String htmlContent = await rootBundle.loadString('assets/ligand_viewer.html');
-      
+      final String htmlContent = await rootBundle.loadString(
+        'assets/ligand_viewer.html',
+      );
+
       // Build the SDF URL for the ligand
       final String ligandId = widget.ligandId.toUpperCase();
       final sdfUrl = '${widget.baseUrl}/${ligandId}_ideal.sdf';
-      
+
+      // Get the background color based on theme brightness
+      final brightness = MediaQuery.of(context).platformBrightness;
+      final backgroundColor = brightness == Brightness.dark
+          ? const Color(0xFF0D1B2A)
+          : const Color(0xFFF5F5F5);
+      final colorHex =
+          '#${backgroundColor.value.toRadixString(16).padLeft(8, '0').substring(2)}';
+
       // Create the WebView controller
       _controller = WebViewController()
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        ..setBackgroundColor(const Color(0xFF0D1B2A))
+        // ..setBackgroundColor(backgroundColor)
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageFinished: (String url) {
-              // Inject the ligand data URL
+              // Set the background color in the WebView
               _controller?.runJavaScript('''
+                if (typeof setBackgroundColor === 'function') {
+                  setBackgroundColor('$colorHex');
+                }
                 window.ligandData = '$sdfUrl';
                 if (typeof loadMolecule === 'function') {
                   loadMolecule('$sdfUrl');
                 }
               ''');
-              
+
               setState(() {
                 _isLoading = false;
               });
@@ -73,7 +86,7 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
             },
           ),
         );
-      
+
       // Load the HTML content
       await _controller!.loadRequest(
         Uri.dataFromString(
@@ -120,11 +133,7 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.error_outline,
-                color: Colors.red,
-                size: 64,
-              ),
+              const Icon(Icons.error_outline, color: Colors.red, size: 64),
               const SizedBox(height: 16),
               Text(
                 'Error Loading Molecule',
@@ -155,18 +164,17 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
 
     return Stack(
       children: [
-        if (_controller != null)
-          WebViewWidget(controller: _controller!),
-        
+        if (_controller != null) WebViewWidget(controller: _controller!),
+
         // Loading indicator
         if (_isLoading)
           Container(
-            color: const Color(0xFF0D1B2A),
-            child: const Center(
-              child: CircularProgressIndicator(),
-            ),
+            color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                ? const Color(0xFF0D1B2A)
+                : const Color(0xFFF5F5F5),
+            child: const Center(child: CircularProgressIndicator()),
           ),
-        
+
         // Control buttons
         if (!_isLoading)
           Positioned(
@@ -223,8 +231,8 @@ class _Ligand3DViewerState extends State<Ligand3DViewer> {
               return ListTile(
                 leading: Icon(
                   Icons.check,
-                  color: isSelected 
-                      ? Theme.of(context).colorScheme.primary 
+                  color: isSelected
+                      ? Theme.of(context).colorScheme.primary
                       : Colors.transparent,
                 ),
                 title: Text(entry.value),

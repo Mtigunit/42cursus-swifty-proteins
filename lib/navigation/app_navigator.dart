@@ -6,6 +6,7 @@ import 'package:swifty_proteins/screens/ligand_list_screen.dart';
 import 'package:swifty_proteins/screens/login_screen.dart';
 import 'package:swifty_proteins/screens/protein_view_screen.dart';
 import 'package:swifty_proteins/services/ligand_service.dart';
+import 'package:swifty_proteins/widgets/common/error_dialog.dart';
 
 /// Handles transitions between Login, List, and Protein View screens
 class AppNavigator extends StatefulWidget {
@@ -85,7 +86,7 @@ class _AppNavigatorState extends State<AppNavigator>
     } catch (e) {
       if (mounted) {
         String errorMessage = 'Failed to load ligand. Please try again.';
-        
+
         // Map specific exception types to user-friendly messages
         if (e is NetworkException) {
           errorMessage = e.toString();
@@ -98,14 +99,8 @@ class _AppNavigatorState extends State<AppNavigator>
         } else {
           errorMessage = e.toString();
         }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            duration: const Duration(seconds: 4),
-            backgroundColor: const Color(0xFFFF3B30),
-          ),
-        );
+
+        ErrorDialog.show(context, title: 'Error', message: errorMessage);
       }
     }
   }
