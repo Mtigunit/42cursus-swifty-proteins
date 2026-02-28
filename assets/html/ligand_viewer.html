@@ -58,6 +58,11 @@
             const model = window.viewer.getModel();
             if (!model) {
                 loadMolecule(window.ligandUrl);
+            } else {
+                // window.viewer.resize();
+                window.viewer.zoomTo();
+                viewer.zoom(1.2);
+                window.viewer.render();
             }
         };
 
@@ -72,10 +77,12 @@
         );
         window.viewer = viewer;
 
+        // ResizeObserver only fires when the actual screen size changes, like when you rotate your phone
         if (window.ResizeObserver) {
             new ResizeObserver(function() {
-                window.viewer.zoomTo();;
-                viewer.render();
+                // window.viewer.resize();
+                viewer.zoomTo();
+                window.viewer.render();
             }).observe(document.getElementById('viewer-container'));
         }
 
@@ -95,6 +102,7 @@
                     viewer.clear();
                     viewer.addModel(sdfData, "sdf");
 
+                    // Send ligand summary to Flutter
                     const model = viewer.getModel();
                     if (model && window.FlutterChannel) {
                         const atoms = model.selectedAtoms({});
@@ -110,8 +118,10 @@
                         }));
                     }
 
+                    // Apply default style
                     setStyle('ballStick');
 
+                    // Register atom click handler
                     viewer.setClickable({}, true, function(atom) {
                         if (window.FlutterChannel) {
                             window.FlutterChannel.postMessage(JSON.stringify({
@@ -128,6 +138,10 @@
                         }
                     });
 
+                    // *** CRITICAL FIX: render after setClickable so click targets are registered ***
+                    viewer.render();
+
+                    // Handle clicks on empty space to hide tooltip
                     viewer.canvas.addEventListener('click', function(event) {
                         const rect = viewer.canvas.getBoundingClientRect();
                         const picked = viewer.pick({
@@ -138,6 +152,12 @@
                             window.FlutterChannel.postMessage(JSON.stringify({ hideTooltip: true }));
                         }
                     });
+
+                    // Center and zoom
+                    viewer.zoomTo();
+                    viewer.zoom(1.2);
+                    viewer.render();
+
                     loadingDiv.style.display = 'none';
                     viewer.rotate(10, { x: 1, y: 1, z: 0 });
                 })
@@ -167,7 +187,7 @@
             return styles[styleName] || styles['ballStick'];
         }
 
-        // Hill notation ===> Carbon first → Hydrogen second → everything else alphabetically
+        // Hill notation: Carbon first → Hydrogen second → everything else alphabetically
         function buildFormula(counts) {
             const parts = [];
             if (counts.C) parts.push('C' + (counts.C > 1 ? counts.C : ''));
