@@ -16,20 +16,24 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
   final _secureStorage = const FlutterSecureStorage();
   bool _hasPreviousSession = false;
+  late final Future<void> _initializationFuture;
 
   @override
   void initState() {
     super.initState();
-    _checkPreviousSession();
-    _authService.checkBiometricAvailability();
+    _initializationFuture = _initializeScreen();
+  }
+
+  Future<void> _initializeScreen() async {
+    await Future.wait([
+      _checkPreviousSession(),
+      _authService.checkBiometricAvailability(),
+    ]);
   }
 
   Future<void> _checkPreviousSession() async {
     final email = await _secureStorage.read(key: "email");
-
-    if (mounted) {
-      setState(() => _hasPreviousSession = email != null);
-    }
+    _hasPreviousSession = email != null;
   }
 
   @override
@@ -43,65 +47,78 @@ class _LoginScreenState extends State<LoginScreen> {
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: GradientBackground(
-        child: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final keyboardVisible =
-                  MediaQuery.viewInsetsOf(context).bottom > 0;
+        child: FutureBuilder<void>(
+          future: _initializationFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-              return SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                  child: IntrinsicHeight(
-                    child: ListenableBuilder(
-                      listenable: _authService,
-                      builder: (context, _) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            SizedBox(
-                              height: keyboardVisible
-                                  ? 20
-                                  : constraints.maxHeight * 0.1,
-                            ),
-                            if (!keyboardVisible) ...[
-                              const AppIcon(),
-                              const SizedBox(height: 24),
-                            ],
-                            AppTitle(context: context),
-                            const SizedBox(height: 40),
-                            LoginForm(
-                              authService: _authService,
-                              onSubmit: () => _authService.onSignIn(context),
-                              isBiometricLoading:
-                                  _authService.isBiometricLoading,
-                            ),
-                            const SizedBox(height: 16),
-                            if (_hasPreviousSession) ...[
-                              const OrDivider(),
-                              const SizedBox(height: 16),
-                              BiometricSection(
-                                available: _authService.isBiometricAvailable,
-                                isLoading: _authService.isBiometricLoading,
-                                isDisabled: _authService.isLoginLoading,
-                                onPressed: () => _authService
-                                    .authenticateWithBiometrics(context),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            const Spacer(),
-                            const Footer(),
-                            const SizedBox(height: 32),
-                          ],
-                        );
-                      },
+            return SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final keyboardVisible =
+                      MediaQuery.viewInsetsOf(context).bottom > 0;
+
+                  return SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight,
+                      ),
+                      child: IntrinsicHeight(
+                        child: ListenableBuilder(
+                          listenable: _authService,
+                          builder: (context, _) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SizedBox(
+                                  height: keyboardVisible
+                                      ? 20
+                                      : constraints.maxHeight * 0.1,
+                                ),
+                                if (!keyboardVisible) ...[
+                                  const AppIcon(),
+                                  const SizedBox(height: 24),
+                                ],
+                                AppTitle(context: context),
+                                const SizedBox(height: 40),
+                                LoginForm(
+                                  authService: _authService,
+                                  onSubmit: () =>
+                                      _authService.onSignIn(context),
+                                  isBiometricLoading:
+                                      _authService.isBiometricLoading,
+                                ),
+                                const SizedBox(height: 16),
+                                if (_hasPreviousSession) ...[
+                                  const OrDivider(),
+                                  const SizedBox(height: 16),
+                                  BiometricSection(
+                                    available:
+                                        _authService.isBiometricAvailable,
+                                    isLoading: _authService.isBiometricLoading,
+                                    isDisabled: _authService.isLoginLoading,
+                                    onPressed: () => _authService
+                                        .authenticateWithBiometrics(context),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                const Spacer(),
+                                const Footer(),
+                                const SizedBox(height: 32),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
+                  );
+                },
+              ),
+            );
+          },
         ),
       ),
     );
