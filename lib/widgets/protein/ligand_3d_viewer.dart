@@ -66,18 +66,18 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
 
       // Create the WebView controller
       _controller = WebViewController()
+        // Enables JavaScript execution in the WebView.
         ..setJavaScriptMode(JavaScriptMode.unrestricted)
-        // ..setBackgroundColor(backgroundColor)
+        // Injects a FlutterChannel object into the WebView's window. The onMessageReceived callback fires every time JS calls it.
         ..addJavaScriptChannel(
           'FlutterChannel',
           onMessageReceived: (JavaScriptMessage message) {
-            _handleAtomClick(message.message);
+            _onChannelMessage(message.message);
           },
         )
         ..setNavigationDelegate(
           NavigationDelegate(
             onPageFinished: (String url) {
-              // Set the background color in the WebView
               _controller?.runJavaScript('''
                 if (typeof setBackgroundColor === 'function') {
                   setBackgroundColor('$colorHex');
@@ -100,22 +100,9 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
               setState(() {
                 _isLoading = false;
               });
-
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _controller?.runJavaScript('''
-                  if (window.viewer) {
-                    window.viewer.resize();
-                    window.viewer.render();
-                  }
-                  if (typeof ensureMoleculeLoaded === 'function') {
-                    ensureMoleculeLoaded();
-                  }
-                  if (typeof requestRender === 'function') {
-                    requestRender();
-                  }
-                ''');
-              });
             },
+
+            // onWebResourceError — fires if the page fails to load, sets the error message to display the error UI
             onWebResourceError: (WebResourceError error) {
               setState(() {
                 _isLoading = false;
@@ -152,28 +139,29 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
     });
   }
 
-  void _handleAtomClick(String jsonData) {
-    try {
-      final atomData = jsonDecode(jsonData) as Map<String, dynamic>;
-
-      if (atomData['type'] == 'ligandSummary') {
-        final atomCount = (atomData['atomCount'] as num?)?.toInt() ?? 0;
-        final formula = atomData['formula'] as String? ?? 'Unknown';
-        widget.onLigandSummary?.call(
-          LigandSummary(atomCount: atomCount, formula: formula),
-        );
-        return;
+  void _onChannelMessage(String jsonData) {
+      final data = jsonDecode(jsonData);
+      if (data['type'] == 'ligandSummary') {
+          _handleLigandSummary(data);
+      } else {
+          _handleAtomClick(data);
       }
+  }
 
-      if (atomData['hideTooltip'] == true) {
-        _hideAtomTooltip();
-        return;
+  void _handleLigandSummary(Map<String, dynamic> data) {
+      final atomCount = (data['atomCount'] as num?)?.toInt() ?? 0;
+      final formula = data['formula'] as String? ?? 'Unknown';
+      widget.onLigandSummary?.call(
+        LigandSummary(atomCount: atomCount, formula: formula),
+      );
+  }
+
+  void _handleAtomClick(Map<String, dynamic> data) {
+      if (data['hideTooltip'] == true) {
+          _hideAtomTooltip();
+          return;
       }
-
-      _showAtomTooltip(atomData);
-    } catch (e) {
-      print('Error parsing atom data: $e');
-    }
+      _showAtomTooltip(data);
   }
 
   void _showAtomTooltip(Map<String, dynamic> atomData) {
@@ -196,7 +184,6 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
     _controller?.runJavaScript('''
       if (window.viewer) {
         window.viewer.zoomTo();
-        window.viewer.zoom(1.2);
         window.viewer.render();
       }
     ''');
@@ -204,28 +191,30 @@ class Ligand3DViewerState extends State<Ligand3DViewer> {
 
   Future<Uint8List?> capturePngBytes() async {
     final controller = _controller;
-    if (controller == null) {
-      return null;
-    }
+    if (controller != null) {
+      // returns the window as a **base64 
+      final result = await controller.runJavaScriptReturningResult(
+        'window.getPngDataUrl && window.getPngDataUrl()',
+      );
 
-    final result = await controller.runJavaScriptReturningResult(
-      'window.getPngDataUrl && window.getPngDataUrl()',
-    );
+      String dataUrl = result.toString();
+      try {
+        // runJavaScriptReturningResult sometimes wraps the result in extra JSON quotes, so this unwraps it if needed
+        final decoded = jsonDecode(dataUrl);
+        if (decoded is String) {
+          dataUrl = decoded;
+        }
+      } catch (_) {}
 
-    String dataUrl = result.toString();
-    try {
-      final decoded = jsonDecode(dataUrl);
-      if (decoded is String) {
-        dataUrl = decoded;
+      if (!dataUrl.startsWith('data:image')) {
+        return null;
       }
-    } catch (_) {}
-
-    if (!dataUrl.startsWith('data:image')) {
-      return null;
+      // removes "data:image/png;base64,"
+      final base64Data = dataUrl.split(',').last;
+      // converts to raw PNG bytes
+      return base64Decode(base64Data);
     }
-
-    final base64Data = dataUrl.split(',').last;
-    return base64Decode(base64Data);
+    return null;
   }
 
   @override

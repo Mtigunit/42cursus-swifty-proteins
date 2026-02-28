@@ -6,39 +6,21 @@
     <title>Ligand 3D Viewer</title>
     <script src="https://3Dmol.csb.pitt.edu/build/3Dmol-min.js"></script>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body, html {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        
-        #viewer-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { width: 100%; height: 100%; overflow: hidden; }
+        #viewer-container { width: 100%; height: 100%; position: relative; }
         #loading {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: #ffffff;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             font-size: 16px;
             text-align: center;
         }
-        
         #error {
             position: absolute;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             color: #ff6b6b;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -56,45 +38,6 @@
     </div>
 
     <script>
-        // Hold ligand URL until viewer and functions are ready
-        window.pendingLigandUrl = null;
-        window.viewerReady = false;
-        window.setLigandData = function(url) {
-            window.ligandData = url;
-            window.pendingLigandUrl = url;
-            if (window.viewerReady && typeof loadMolecule === 'function') {
-                loadMolecule(url);
-            }
-        };
-
-        window.ensureMoleculeLoaded = function() {
-            if (!window.viewer || !window.pendingLigandUrl) return;
-            const model = window.viewer.getModel();
-            if (!model && typeof loadMolecule === 'function') {
-                loadMolecule(window.pendingLigandUrl);
-            } else if (window.viewer) {
-                window.viewer.resize();
-                window.viewer.render();
-            }
-        };
-
-        window.requestRender = function() {
-            if (!window.viewer) return;
-            window.viewer.resize();
-            window.viewer.render();
-            setTimeout(function() {
-                if (!window.viewer) return;
-                window.viewer.resize();
-                window.viewer.render();
-            }, 100);
-            setTimeout(function() {
-                if (!window.viewer) return;
-                window.viewer.resize();
-                window.viewer.render();
-            }, 250);
-        };
-
-        // Set initial background color from Flutter (default to dark)
         let backgroundColorHex = '#0D1B2A';
         window.setBackgroundColor = function(color) {
             backgroundColorHex = color;
@@ -104,221 +47,141 @@
                 viewer.render();
             }
         };
-        
-        // Initialize 3Dmol viewer
-        let viewer;
-        let element = document.getElementById('viewer-container');
-        // Apply dynamic background color with smooth rendering and no distance blur for optimal molecular visualization
-        let config = { 
-            backgroundColor: backgroundColorHex,
-            antialias: true,
-            disableFog: true
-        };
-        // 3Dmol.js creates a WebGL canvas
-        viewer = $3Dmol.createViewer(element, config);
-        window.viewer = viewer;
-        window.viewerReady = true;
 
-        if (window.ResizeObserver) {
-            const resizeObserver = new ResizeObserver(function() {
-                if (window.viewer) {
-                    window.viewer.resize();
-                    window.viewer.render();
-                }
-            });
-            resizeObserver.observe(element);
-        }
-        
-        // CPK color scheme for atoms
+        window.setLigandData = function(url) {
+            window.ligandUrl = url;
+            loadMolecule(url);
+        };
+
+        window.ensureMoleculeLoaded = function() {
+            if (!window.viewer || !window.ligandUrl) return;
+            const model = window.viewer.getModel();
+            if (!model) {
+                loadMolecule(window.ligandUrl);
+            }
+        };
+
         window.cpkColors = {
             prop: "elem",
             map: { C: 0x333333 }
         };
-        
-        // Function to load and display molecule
+
+        let viewer = $3Dmol.createViewer(
+            document.getElementById('viewer-container'),
+            { backgroundColor: backgroundColorHex, antialias: true, disableFog: true }
+        );
+        window.viewer = viewer;
+
+        if (window.ResizeObserver) {
+            new ResizeObserver(function() {
+                window.viewer.zoomTo();;
+                viewer.render();
+            }).observe(document.getElementById('viewer-container'));
+        }
+
         function loadMolecule(sdfUrl) {
             const loadingDiv = document.getElementById('loading');
             const errorDiv = document.getElementById('error');
-            
+
             loadingDiv.style.display = 'block';
             errorDiv.style.display = 'none';
-            
+
             fetch(sdfUrl)
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! status: ${response.status}`);
-                    }
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     return response.text();
                 })
                 .then(sdfData => {
-                    // Clear any existing models
                     viewer.clear();
-                    
-                    // Add the model from SDF data
                     viewer.addModel(sdfData, "sdf");
 
-                    // Send ligand summary to Flutter
                     const model = viewer.getModel();
                     if (model && window.FlutterChannel) {
                         const atoms = model.selectedAtoms({});
                         const counts = {};
                         atoms.forEach(atom => {
                             const elem = (atom.elem || '').trim();
-                            if (!elem) return;
-                            counts[elem] = (counts[elem] || 0) + 1;
+                            if (elem) counts[elem] = (counts[elem] || 0) + 1;
                         });
-                        const formula = buildFormula(counts);
-                        window.FlutterChannel.postMessage(
-                            JSON.stringify({
-                                type: 'ligandSummary',
-                                atomCount: atoms.length,
-                                formula: formula
-                            })
-                        );
+                        window.FlutterChannel.postMessage(JSON.stringify({
+                            type: 'ligandSummary',
+                            atomCount: atoms.length,
+                            formula: buildFormula(counts)
+                        }));
                     }
-                    
-                    // Set default style using the same pathway as the UI
+
                     setStyle('ballStick');
-                    setTimeout(function() {
-                        setStyle('ballStick');
-                    }, 60);
-                    
-                    // Make atoms clickable
-                    viewer.setClickable(
-                        {},
-                        true,
-                        function(atom, viewer, event, container) {
-                            if (window.FlutterChannel) {
-                                const atomData = {
-                                    elem: atom.elem,
-                                    serial: atom.serial,
-                                    color: atom.color,
-                                    name: atom.name || atom.elem,
-                                    resi: atom.resi || '',
-                                    resn: atom.resn || '',
-                                    x: (atom.x || 0).toFixed(2),
-                                    y: (atom.y || 0).toFixed(2),
-                                    z: (atom.z || 0).toFixed(2)
-                                };
-                                window.FlutterChannel.postMessage(JSON.stringify(atomData));
-                            }
-                        }
-                    );
-                    
-                    // Handle clicks on empty space to hide tooltip
-                    viewer.canvas.addEventListener('click', function(event) {
-                        const rect = viewer.canvas.getBoundingClientRect();
-                        const x = event.clientX - rect.left;
-                        const y = event.clientY - rect.top;
-                        const pickedAtom = viewer.pick({ x: x, y: y });
-                        
-                        if (!pickedAtom || !pickedAtom.atom) {
-                            if (window.FlutterChannel) {
-                                window.FlutterChannel.postMessage(JSON.stringify({hideTooltip: true}));
-                            }
+
+                    viewer.setClickable({}, true, function(atom) {
+                        if (window.FlutterChannel) {
+                            window.FlutterChannel.postMessage(JSON.stringify({
+                                elem: atom.elem,
+                                serial: atom.serial,
+                                color: atom.color,
+                                name: atom.name || atom.elem,
+                                resi: atom.resi || '',
+                                resn: atom.resn || '',
+                                x: (atom.x || 0).toFixed(2),
+                                y: (atom.y || 0).toFixed(2),
+                                z: (atom.z || 0).toFixed(2)
+                            }));
                         }
                     });
-                    
-                    // Center and zoom to fit the molecule
-                    viewer.zoomTo();
-                    viewer.zoom(1.2);
-                    
-                    // Render the scene
-                    viewer.render();
-                    setTimeout(function() {
-                        viewer.resize();
-                        viewer.render();
-                    }, 0);
-                    window.requestRender();
-                    
-                    // Hide loading indicator
+
+                    viewer.canvas.addEventListener('click', function(event) {
+                        const rect = viewer.canvas.getBoundingClientRect();
+                        const picked = viewer.pick({
+                            x: event.clientX - rect.left,
+                            y: event.clientY - rect.top
+                        });
+                        if ((!picked || !picked.atom) && window.FlutterChannel) {
+                            window.FlutterChannel.postMessage(JSON.stringify({ hideTooltip: true }));
+                        }
+                    });
                     loadingDiv.style.display = 'none';
-                    
-                    // Enable rotation
-                    viewer.rotate(10, {x:1, y:1, z:0});
+                    viewer.rotate(10, { x: 1, y: 1, z: 0 });
                 })
                 .catch(error => {
-                    console.error('Error loading molecule:', error);
                     loadingDiv.style.display = 'none';
                     errorDiv.style.display = 'block';
                     errorDiv.textContent = 'Failed to load molecule\n' + error.message;
                 });
         }
-        
-        // Function to change visualization style
+
         function setStyle(styleName) {
             if (!viewer) return;
-            
             viewer.setStyle({}, getStyleConfig(styleName));
             viewer.render();
         }
-        
+
         function getStyleConfig(styleName) {
             const styles = {
-                'stick': {
-                    stick: {
-                        radius: 0.15,
-                        colorscheme: window.cpkColors
-                    }
+                stick:    { stick:  { radius: 0.15, colorscheme: window.cpkColors } },
+                sphere:   { sphere: { radius: 1.0,  colorscheme: window.cpkColors } },
+                ballStick: {
+                    stick:  { radius: 0.15, colorscheme: window.cpkColors },
+                    sphere: { radius: 0.3,  colorscheme: window.cpkColors }
                 },
-                'sphere': {
-                    sphere: {
-                        radius: 1.0,
-                        colorscheme: window.cpkColors
-                    }
-                },
-                'ballStick': {
-                    stick: {
-                        radius: 0.15,
-                        colorscheme: window.cpkColors
-                    },
-                    sphere: {
-                        radius: 0.3,
-                        colorscheme: window.cpkColors
-                    }
-                },
-                'cartoon': {
-                    cartoon: {
-                        color: 'spectrum'
-                    }
-                },
-                'line': {
-                    line: {
-                        colorscheme: window.cpkColors
-                    }
-                }
+                line:     { line: { colorscheme: window.cpkColors } }
             };
-            
             return styles[styleName] || styles['ballStick'];
         }
 
+        // Hill notation ===> Carbon first → Hydrogen second → everything else alphabetically
         function buildFormula(counts) {
             const parts = [];
-            if (counts.C) {
-                parts.push('C' + (counts.C > 1 ? counts.C : ''));
-            }
-            if (counts.H) {
-                parts.push('H' + (counts.H > 1 ? counts.H : ''));
-            }
-            const others = Object.keys(counts)
-                .filter(elem => elem !== 'C' && elem !== 'H')
-                .sort();
-            others.forEach(elem => {
-                parts.push(elem + (counts[elem] > 1 ? counts[elem] : ''));
-            });
+            if (counts.C) parts.push('C' + (counts.C > 1 ? counts.C : ''));
+            if (counts.H) parts.push('H' + (counts.H > 1 ? counts.H : ''));
+            Object.keys(counts)
+                .filter(e => e !== 'C' && e !== 'H')
+                .sort()
+                .forEach(e => parts.push(e + (counts[e] > 1 ? counts[e] : '')));
             return parts.length ? parts.join('') : 'Unknown';
         }
 
         window.getPngDataUrl = function() {
-            if (!window.viewer) return null;
-            return window.viewer.pngURI();
+            return window.viewer ? window.viewer.pngURI() : null;
         };
-
-        // Auto-load when Flutter provides the ligand URL early
-        if (window.pendingLigandUrl && typeof loadMolecule === 'function') {
-            loadMolecule(window.pendingLigandUrl);
-        }
-        window.requestRender();
     </script>
 </body>
 </html>

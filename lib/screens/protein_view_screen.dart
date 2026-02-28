@@ -61,7 +61,9 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
       '${tempDir.path}/ligand_${widget.ligandId.toLowerCase()}.png',
     );
     await file.writeAsBytes(pngBytes, flush: true);
-
+    // Share.shareXFiles — opens the native share dialog
+    // wraps the screenshot file into a shareable file object.
+    // attaches a text message alongside the file,
     await Share.shareXFiles([XFile(file.path)], text: _buildShareMessage());
   }
 
