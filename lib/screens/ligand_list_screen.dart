@@ -51,10 +51,7 @@ class _LigandListScreenState extends State<LigandListScreen> {
       // If verification passes, proceed to 3D view
       await widget.onLigandSelected(ligandId);
     } catch (e) {
-      _showErrorDialog(
-        'Ligand Not Found',
-        e.toString(),
-      );
+      _showErrorDialog('Error Loading Ligand', e.toString());
     } finally {
       if (mounted) {
         setState(() => _loadingLigandId = null);

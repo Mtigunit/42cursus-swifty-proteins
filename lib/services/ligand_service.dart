@@ -18,38 +18,33 @@ class LigandService {
     }
   }
 
-  /// Verify if a ligand file exists by checking the RCSB API
   static Future<bool> verifyLigandExists(String ligandId) async {
+    final id = ligandId.trim().toUpperCase();
+    final uri = Uri.parse('$baseUrl/${id}_ideal.sdf');
+
     try {
-      final String sdfUrl = '$baseUrl/${ligandId.toUpperCase()}_ideal.sdf';
-      final response = await http.get(Uri.parse(sdfUrl)).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () {
-          throw TimeoutException('Request timed out while checking ligand');
-        },
-      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 404) {
-        throw LigandNotFoundException(
-          'Ligand "${ligandId.toUpperCase()}" not found in the database.',
-        );
+      switch (response.statusCode) {
+        case 200:
+          return true;
+
+        case 404:
+          throw LigandNotFoundException('Ligand not found in the database.');
+
+        default:
+          throw NetworkException(
+            'Failed to validate ligand (HTTP ${response.statusCode}).',
+          );
       }
-
-      if (response.statusCode != 200) {
-        throw NetworkException(
-          'Failed to validate ligand (Error: ${response.statusCode})',
-        );
-      }
-
-      return true;
-    } on LigandNotFoundException {
-      rethrow;
     } on TimeoutException {
-      rethrow;
-    } on NetworkException {
-      rethrow;
+      throw TimeoutException('Request timed out while checking ligand "$id".');
+    } on http.ClientException catch (e) {
+      throw NetworkException(
+        'Network error while checking ligand "$id": ${e.message}',
+      );
     } catch (e) {
-      throw NetworkException('Failed to check ligand: $e');
+      throw NetworkException('Error checking "$id": $e');
     }
   }
 }
