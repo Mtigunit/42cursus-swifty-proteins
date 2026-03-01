@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:http/http.dart' as http;
 
 class LigandService {
   static const String baseUrl = 'https://files.rcsb.org/ligands/view';
@@ -14,6 +15,41 @@ class LigandService {
       return ligands;
     } catch (e) {
       throw Exception('Failed to load ligands: $e');
+    }
+  }
+
+  /// Verify if a ligand file exists by checking the RCSB API
+  static Future<bool> verifyLigandExists(String ligandId) async {
+    try {
+      final String sdfUrl = '$baseUrl/${ligandId.toUpperCase()}_ideal.sdf';
+      final response = await http.get(Uri.parse(sdfUrl)).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw TimeoutException('Request timed out while checking ligand');
+        },
+      );
+
+      if (response.statusCode == 404) {
+        throw LigandNotFoundException(
+          'Ligand "${ligandId.toUpperCase()}" not found in the database.',
+        );
+      }
+
+      if (response.statusCode != 200) {
+        throw NetworkException(
+          'Failed to validate ligand (Error: ${response.statusCode})',
+        );
+      }
+
+      return true;
+    } on LigandNotFoundException {
+      rethrow;
+    } on TimeoutException {
+      rethrow;
+    } on NetworkException {
+      rethrow;
+    } catch (e) {
+      throw NetworkException('Failed to check ligand: $e');
     }
   }
 }

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:swifty_proteins/services/ligand_service.dart';
 import 'package:swifty_proteins/widgets/common/error_dialog.dart';
 import 'package:swifty_proteins/widgets/ligands/ligand_widgets.dart';
-// import 'package:swifty_proteins/services/ligand_service.dart';
 
 class LigandListScreen extends StatefulWidget {
   final List<String> ligands;
@@ -46,10 +46,13 @@ class _LigandListScreenState extends State<LigandListScreen> {
   Future<void> _handleLigandTap(String ligandId) async {
     setState(() => _loadingLigandId = ligandId);
     try {
+      // First, verify the ligand exists before entering 3D view
+      await LigandService.verifyLigandExists(ligandId);
+      // If verification passes, proceed to 3D view
       await widget.onLigandSelected(ligandId);
     } catch (e) {
       _showErrorDialog(
-        'Failed to Load',
+        'Ligand Not Found',
         e.toString(),
       );
     } finally {
