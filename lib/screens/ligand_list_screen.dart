@@ -5,7 +5,7 @@ import 'package:swifty_proteins/widgets/ligands/ligand_widgets.dart';
 
 class LigandListScreen extends StatefulWidget {
   final List<String> ligands;
-  final Future<void> Function(String ligandId) onLigandSelected;
+  final void Function(String ligandId) onLigandSelected;
   final VoidCallback? onLogout;
 
   const LigandListScreen({
@@ -49,7 +49,7 @@ class _LigandListScreenState extends State<LigandListScreen> {
       // First, verify the ligand exists before entering 3D view
       await LigandService.verifyLigandExists(ligandId);
       // If verification passes, proceed to 3D view
-      await widget.onLigandSelected(ligandId);
+      widget.onLigandSelected(ligandId);
     } catch (e) {
       _showErrorDialog('Error Loading Ligand', e.toString());
     } finally {

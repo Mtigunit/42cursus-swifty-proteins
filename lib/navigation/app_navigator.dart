@@ -5,9 +5,8 @@ import 'package:swifty_proteins/screens/ligand_list_screen.dart';
 import 'package:swifty_proteins/screens/login_screen.dart';
 import 'package:swifty_proteins/screens/protein_view_screen.dart';
 import 'package:swifty_proteins/services/ligand_service.dart';
-import 'package:swifty_proteins/widgets/common/error_dialog.dart';
 
-/// Handles transitions between Login, List, and Protein View screens
+/// Manages app-level navigation, authentication state, and ligand data loading.
 class AppNavigator extends StatefulWidget {
   const AppNavigator({super.key});
 
@@ -17,16 +16,22 @@ class AppNavigator extends StatefulWidget {
 
 class _AppNavigatorState extends State<AppNavigator>
     with WidgetsBindingObserver {
-  String? _currentLigandId;
+  // Navigation state
+  String? _selectedLigandId;
+
+  // Data state
   List<String> _ligands = [];
   bool _isLoadingLigands = true;
-  final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
+
+  // Service dependencies
+  late final FirebaseAuth _auth;
 
   @override
   void initState() {
     super.initState();
+    _auth = FirebaseAuth.instance;
     WidgetsBinding.instance.addObserver(this);
-    _loadLigands();
+    _initializeLigands();
   }
 
   @override
@@ -35,22 +40,17 @@ class _AppNavigatorState extends State<AppNavigator>
     super.dispose();
   }
 
-  Future<void> _clear() async {
-    _firebaseAuth.signOut();
-    _currentLigandId = null;
-  }
-  
+  /// Handles app lifecycle state changes. Logs out user when app is backgrounded.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
       // App is backgrounded - logout user
-      unawaited(
-        // _firebaseAuth.signOut());
-        _clear());
+      unawaited(_signOutAndReset());
     }
   }
 
-  Future<void> _loadLigands() async {
+  /// Initializes ligand data on app startup.
+  Future<void> _initializeLigands() async {
     try {
       final ligands = await LigandService.loadLigands();
       if (mounted) {
@@ -61,67 +61,54 @@ class _AppNavigatorState extends State<AppNavigator>
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoadingLigands = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load ligands: $e'),
-            duration: const Duration(seconds: 3),
-          ),
-        );
+        setState(() => _isLoadingLigands = false);
+        _showErrorMessage('Failed to load ligands: $e');
       }
     }
   }
 
-  Future<void> _handleLigandSelected(String ligandId) async {
+  /// Signs out the user and resets navigation state.
+  Future<void> _signOutAndReset() async {
     try {
+      await _auth.signOut();
       if (mounted) {
-        setState(() {
-          _currentLigandId = ligandId;
-        });
+        setState(() => _selectedLigandId = null);
       }
     } catch (e) {
       if (mounted) {
-        String errorMessage = 'Failed to load ligand. Please try again.';
-
-        // Map specific exception types to user-friendly messages
-        if (e is NetworkException) {
-          errorMessage = e.toString();
-        } else if (e is LigandNotFoundException) {
-          errorMessage = e.toString();
-        } else if (e is ParseException) {
-          errorMessage = e.toString();
-        } else if (e is TimeoutException) {
-          errorMessage = e.toString();
-        } else {
-          errorMessage = e.toString();
-        }
-
-        ErrorDialog.show(context, title: 'Error', message: errorMessage);
+        _showErrorMessage('Sign out failed: $e');
       }
     }
   }
 
-  void _handleBackFromProteinView() {
-    setState(() {
-      _currentLigandId = null;
-    });
+  /// Displays an error message via SnackBar.
+  void _showErrorMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 3)),
+    );
   }
 
-  Future<void> _handleLogout() async {
-    await _firebaseAuth.signOut();
-    setState(() {
-      _currentLigandId = null;
-    });
+  /// Handles selection of a ligand to view.
+  void _onLigandSelected(String ligandId) {
+    setState(() => _selectedLigandId = ligandId);
+  }
+
+  /// Handles navigation back from protein view screen.
+  void _onProteinViewBack() {
+    setState(() => _selectedLigandId = null);
+  }
+
+  /// Handles user logout action.
+  Future<void> _onLogout() async {
+    await _signOutAndReset();
   }
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: _auth.authStateChanges(),
       builder: (context, snapshot) {
-        // Firebase connection still initializing
+        // Show loading state while Firebase initializes or ligands load
         if (snapshot.connectionState == ConnectionState.waiting ||
             _isLoadingLigands) {
           return const Scaffold(
@@ -129,23 +116,23 @@ class _AppNavigatorState extends State<AppNavigator>
           );
         }
 
-        // Authenticated — show protein view or ligand list
+        // User is authenticated
         if (snapshot.hasData) {
-          if (_currentLigandId != null) {
+          if (_selectedLigandId != null) {
             return ProteinViewScreen(
-              ligandId: _currentLigandId!,
-              onBack: _handleBackFromProteinView,
+              ligandId: _selectedLigandId!,
+              onBack: _onProteinViewBack,
             );
           }
 
           return LigandListScreen(
             ligands: _ligands,
-            onLigandSelected: _handleLigandSelected,
-            onLogout: _handleLogout,
+            onLigandSelected: _onLigandSelected,
+            onLogout: _onLogout,
           );
         }
 
-        // Not authenticated — show login
+        // User is not authenticated
         return const LoginScreen();
       },
     );
