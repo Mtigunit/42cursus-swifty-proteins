@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -6,7 +7,9 @@ import 'package:share_plus/share_plus.dart';
 import 'package:swifty_proteins/models/ligand_summary.dart';
 import 'package:swifty_proteins/widgets/protein/ligand_3d_viewer.dart';
 
-/// Protein View Screen - Molecule Display
+/// Displays a 3D molecular structure viewer for a specific ligand.
+///
+/// Provides interactive visualization and sharing capabilities.
 class ProteinViewScreen extends StatefulWidget {
   final String ligandId;
   final VoidCallback onBack;
@@ -26,9 +29,68 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
   final GlobalKey<Ligand3DViewerState> _viewerKey =
       GlobalKey<Ligand3DViewerState>();
 
-  String _buildShareMessage() {
-    final summary = _ligandSummary;
+  /// Updates the ligand summary when loaded by the 3D viewer.
+  void _onLigandLoaded(LigandSummary summary) {
+    if (mounted) {
+      setState(() => _ligandSummary = summary);
+    }
+  }
+
+  /// Handles share button press - captures screenshot and shares ligand data.
+  Future<void> _onSharePressed() async {
+    if (_ligandSummary == null) {
+      _showError('Molecule details are still loading.');
+      return;
+    }
+
+    try {
+      final imageBytes = await _captureScreenshot();
+      if (imageBytes == null) {
+        _showError('Unable to capture the ligand image yet.');
+        return;
+      }
+
+      final imageFile = await _createTempImageFile(imageBytes);
+      await _shareImage(imageFile);
+    } catch (e) {
+      _showError('Failed to share ligand: $e');
+    }
+  }
+
+  /// Captures a PNG screenshot of the current 3D viewer state.
+  Future<Uint8List?> _captureScreenshot() async {
+    return _viewerKey.currentState?.capturePngBytes();
+  }
+
+  /// Creates a temporary file containing the ligand image.
+  Future<File> _createTempImageFile(Uint8List imageBytes) async {
+    final tempDir = await getTemporaryDirectory();
+    final fileName = 'ligand_${widget.ligandId.toLowerCase()}.png';
+    final file = File('${tempDir.path}/$fileName');
+    await file.writeAsBytes(imageBytes, flush: true);
+    return file;
+  }
+
+  Future<void> _shareImage(File imageFile) async {
+    final params = ShareParams(
+      files: [XFile(imageFile.path)],
+      text: _buildShareText(),
+    );
+
+    final result = await SharePlus.instance.share(params);
+    if (result.status != ShareResultStatus.success) {
+      _showError('Failed to share ligand: ${result.status}');
+    }
+  }
+  // /// Opens the native share dialog with the ligand image and details.
+  // Future<void> _shareImage(File imageFile) async {
+  //   await Share.shareXFiles([XFile(imageFile.path)], text: _buildShareText());
+  // }
+
+  /// Builds the text message to accompany the shared image.
+  String _buildShareText() {
     final ligandName = widget.ligandId.toUpperCase();
+    final summary = _ligandSummary;
 
     if (summary == null) {
       return 'Ligand $ligandName';
@@ -38,64 +100,45 @@ class _ProteinViewScreenState extends State<ProteinViewScreen> {
         'Molecular formula: ${summary.formula}.';
   }
 
-  Future<void> _shareLigand() async {
-    if (_ligandSummary == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Molecule details are still loading.')),
-      );
-      return;
-    }
+  /// Displays an error message to the user via SnackBar.
+  void _showError(String message) {
+    if (!mounted) return;
 
-    final pngBytes = await _viewerKey.currentState?.capturePngBytes();
-    if (pngBytes == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to capture the ligand image yet.'),
-        ),
-      );
-      return;
-    }
-
-    final tempDir = await getTemporaryDirectory();
-    final file = File(
-      '${tempDir.path}/ligand_${widget.ligandId.toLowerCase()}.png',
-    );
-    await file.writeAsBytes(pngBytes, flush: true);
-    // Share.shareXFiles — opens the native share dialog
-    // wraps the screenshot file into a shareable file object.
-    // attaches a text message alongside the file,
-    await Share.shareXFiles([XFile(file.path)], text: _buildShareMessage());
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.ligandId.toUpperCase()),
-        centerTitle: false,
-        elevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios),
-          onPressed: widget.onBack,
-          tooltip: 'Back',
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share),
-            onPressed: _shareLigand,
-            tooltip: 'Share',
-          ),
-        ],
-      ),
+      appBar: _buildAppBar(),
       body: Ligand3DViewer(
         key: _viewerKey,
         ligandId: widget.ligandId,
-        onLigandSummary: (summary) {
-          if (mounted) {
-            setState(() => _ligandSummary = summary);
-          }
-        },
+        onLigandSummary: _onLigandLoaded,
       ),
+    );
+  }
+
+  /// Builds the app bar with navigation and share actions.
+  AppBar _buildAppBar() {
+    return AppBar(
+      title: Text(widget.ligandId.toUpperCase()),
+      centerTitle: false,
+      elevation: 0.5,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios),
+        onPressed: widget.onBack,
+        tooltip: 'Back',
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.share),
+          onPressed: _onSharePressed,
+          tooltip: 'Share',
+        ),
+      ],
     );
   }
 }
