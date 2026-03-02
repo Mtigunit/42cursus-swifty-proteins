@@ -60,14 +60,7 @@ class _LigandListScreenState extends State<LigandListScreen> {
   }
 
   void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => ErrorDialog(
-        title: title,
-        message: message,
-        onDismiss: () => Navigator.pop(context),
-      ),
-    );
+    ErrorDialog.show(context, title: title, message: message);
   }
 
   @override
